@@ -351,6 +351,16 @@ class HttpSafetyTests(unittest.TestCase):
 
 
 class DeploymentProfileTests(unittest.TestCase):
+    def test_root_dockerfile_matches_the_explicit_web_build_entrypoint(self):
+        root = Path(__file__).resolve().parents[1]
+        content = (root / 'Dockerfile').read_text()
+        self.assertEqual(content, (root / 'infra/docker/web.Dockerfile').read_text())
+        self.assertIn('COPY web ./', content)
+        self.assertIn('ARG NEXT_PUBLIC_API_BASE_URL=', content)
+        self.assertIn('USER 10001:10001', content)
+        self.assertIn('EXPOSE 3000', content)
+        self.assertNotIn('COPY backend', content)
+
     def test_both_profiles_use_the_same_pinned_quay_images(self):
         expected = {
             'quay.io/minio/minio:RELEASE.2025-04-22T22-12-26Z',

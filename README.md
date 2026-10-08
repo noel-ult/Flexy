@@ -87,7 +87,16 @@ for the operational detail.
 [`compose.dokploy.yaml`](compose.dokploy.yaml) is the Docker Compose profile for
 Dokploy. Select its native **GitHub** provider, repository `noel-ult/Flexy`, branch
 `main`, and Compose path `compose.dokploy.yaml` (not Custom Git or an Application
-service). The [Dokploy guide](docs/dokploy.md) includes a safe helper for copying
+service for the entire stack). A root [`Dockerfile`](Dockerfile) also provides
+the **web frontend only** for a Dockerfile-based Application deployment; it is
+identical to `infra/docker/web.Dockerfile`. That image listens on port `3000`
+and does not start the API, worker, database, queue, or artifact storage. It needs
+an independently deployed Flexy backend. Set `NEXT_PUBLIC_API_BASE_URL` as a
+**build argument** to that backend's public origin; setting it only as a runtime
+environment variable does not change the browser bundle. A successful frontend
+build alone is not a working conversion service.
+
+The [Dokploy guide](docs/dokploy.md) includes a safe helper for copying
 the saved environment and switching the earlier failed setup to GitHub without
 deleting its services, credentials, or volumes. MinIO images use pinned release
 tags from Quay; verify registry access from the deployment server before rollout.

@@ -10,6 +10,27 @@ fixture check below.
 
 ## Before creating the service
 
+### Dockerfile-based Application: frontend only
+
+The repository-root `Dockerfile` builds the same non-root Next.js frontend as
+`infra/docker/web.Dockerfile`. It exists for tools that automatically look for
+`Dockerfile` at the repository root and prevents the missing-Dockerfile build
+error. It listens on port `3000`.
+
+This is **not** a replacement for the full Compose deployment: the API,
+separate worker, PostgreSQL, Redis, and private object storage must be deployed
+independently. Pass the reachable backend's public origin through the
+`NEXT_PUBLIC_API_BASE_URL` build argument. A runtime env value alone cannot
+replace the baked-in browser URL. If the backend is on another origin, its
+`FRONTEND_ORIGIN` must allow the frontend origin. Do not claim upload, analysis,
+or conversion works from a frontend-only deployment.
+
+For a complete stack on Dokploy, use `compose.dokploy.yaml` below. Adding the
+root Dockerfile does not change existing env values, provider settings, routes,
+or service definitions.
+
+### Full-stack prerequisites
+
 - Use a dedicated Linux deployment server or Dokploy remote server with enough
   CPU, memory, and disk for a disposable Arch build. Do not co-locate this
   untrusted-build workload with services you cannot isolate.
