@@ -4,9 +4,12 @@ import tempfile
 import unittest
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
+from importlib.util import find_spec
 from pathlib import Path
 
-try:
+HAS_SQLALCHEMY = find_spec("sqlalchemy") is not None
+
+if HAS_SQLALCHEMY:
     from sqlalchemy import select
 
     from app.config import Settings
@@ -16,11 +19,6 @@ try:
     from app.repository import AccessDeniedError, JobRepository
     from app.security import token_hash
     from app.storage import ArtifactStoreError, LocalArtifactStore
-
-    HAS_SQLALCHEMY = True
-except ModuleNotFoundError:
-    HAS_SQLALCHEMY = False
-
 
 @unittest.skipUnless(HAS_SQLALCHEMY, "requires backend runtime dependencies")
 class JobAndArtifactTests(unittest.TestCase):
@@ -88,7 +86,9 @@ class JobAndArtifactTests(unittest.TestCase):
                 repository.consume_download_token(token)
             token, _expires = repository.mint_download_token(job.id, ArtifactKind.PACKAGE)
             with factory.begin() as session:
-                grant = session.scalar(select(DownloadToken).where(DownloadToken.token_hash == token_hash(token)))
+                grant = session.scalar(
+                    select(DownloadToken).where(DownloadToken.token_hash == token_hash(token))
+                )
                 assert grant is not None
                 grant.expires_at = datetime.now(UTC) - timedelta(seconds=1)
             with self.assertRaises(AccessDeniedError):

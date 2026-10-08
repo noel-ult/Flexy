@@ -25,7 +25,9 @@ def _enqueue(kind: str, job_id: str) -> None:
         from .services import process_analysis, process_build
 
         target = process_analysis if kind == "analysis" else process_build
-        threading.Thread(target=target, args=(job_id,), daemon=True, name=f"flexy-{kind}-{job_id[:8]}").start()
+        threading.Thread(
+            target=target, args=(job_id,), daemon=True, name=f"flexy-{kind}-{job_id[:8]}"
+        ).start()
         return
     if settings.queue_mode != "dramatiq":
         raise QueueUnavailable("A Redis/Dramatiq queue is required; inline execution is disabled.")

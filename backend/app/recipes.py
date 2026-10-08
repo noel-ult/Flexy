@@ -66,14 +66,7 @@ class Recipe:
             # recipe's immutable work directory.
             source = f'"$startdir/payload/{path}"'
             destination = f'"$pkgdir/{path}"'
-            package_lines.append(
-                "  install -Dm"
-                + mode
-                + " "
-                + source
-                + " "
-                + destination
-            )
+            package_lines.append("  install -Dm" + mode + " " + source + " " + destination)
         dependencies = " ".join(shlex.quote(item) for item in self.arch_dependencies)
         return "\n".join(
             [
@@ -113,7 +106,7 @@ class RecipeRegistry:
         self._recipes = {recipe.identifier: recipe for recipe in recipes}
 
     @classmethod
-    def from_directory(cls, directory: Path) -> "RecipeRegistry":
+    def from_directory(cls, directory: Path) -> RecipeRegistry:
         recipes: list[Recipe] = []
         if not directory.exists():
             return cls([])
@@ -128,7 +121,9 @@ class RecipeRegistry:
     def get(self, identifier: str | None) -> Recipe | None:
         return self._recipes.get(identifier or "")
 
-    def select(self, inspection: DebInspection, target_os: str, target_architecture: str) -> RecipeSelection:
+    def select(
+        self, inspection: DebInspection, target_os: str, target_architecture: str
+    ) -> RecipeSelection:
         candidate_recipes = [
             recipe
             for recipe in self._recipes.values()
@@ -143,7 +138,9 @@ class RecipeRegistry:
                     + [
                         {
                             "code": "unsupported_target",
-                            "message": f"No conversion recipes target {target_os}/{target_architecture}.",
+                            "message": (
+                                f"No conversion recipes target {target_os}/{target_architecture}."
+                            ),
                             "severity": "blocking",
                         }
                     ]
@@ -155,7 +152,9 @@ class RecipeRegistry:
         for recipe in candidate_recipes:
             blockers, mappings = _recipe_match_blockers(recipe, inspection)
             if not blockers and not shared_blockers:
-                return RecipeSelection(recipe=recipe, blockers=(), mapped_dependencies=tuple(mappings))
+                return RecipeSelection(
+                    recipe=recipe, blockers=(), mapped_dependencies=tuple(mappings)
+                )
             near_misses.extend(blockers)
         # Deduplicate predictable mismatches, while retaining a useful reason rather
         # than exposing recipe implementation details to an anonymous caller.
@@ -185,7 +184,9 @@ def _parse_recipe(data: dict[str, Any], source_name: str) -> Recipe:
         files = source["files"]
         mappings = tuple(
             DependencyMapping(
-                debian=str(item["debian"]), constraint=str(item.get("constraint", "")), arch=str(item["arch"])
+                debian=str(item["debian"]),
+                constraint=str(item.get("constraint", "")),
+                arch=str(item["arch"]),
             )
             for item in data.get("dependencyMappings", [])
         )
@@ -197,18 +198,30 @@ def _parse_recipe(data: dict[str, Any], source_name: str) -> Recipe:
             target_os=str(target["os"]),
             target_architecture=str(target["architecture"]),
             control_sha256=str(source["controlSha256"]) if source.get("controlSha256") else None,
-            files={_safe_recipe_path(path): _valid_sha256(digest) for path, digest in files.items()},
-            file_modes={_safe_recipe_path(path): _valid_mode(mode) for path, mode in source.get("fileModes", {}).items()},
+            files={
+                _safe_recipe_path(path): _valid_sha256(digest) for path, digest in files.items()
+            },
+            file_modes={
+                _safe_recipe_path(path): _valid_mode(mode)
+                for path, mode in source.get("fileModes", {}).items()
+            },
             dependency_mappings=mappings,
             pkgrel=int(data.get("pkgrel", 1)),
             description=str(data["description"]),
             license=str(data.get("license", "custom")),
             entrypoint=_safe_recipe_path(str(verification["entrypoint"])),
-            launch_args=tuple(_safe_argument(item) for item in verification.get("launchArgs", ["--version"])),
-            functionality_args=tuple(
-                _safe_argument(item) for item in verification.get("functionalityArgs", ["--self-test"])
+            launch_args=tuple(
+                _safe_argument(item) for item in verification.get("launchArgs", ["--version"])
             ),
-            expected_launch_output=(str(verification["expectedLaunchOutput"]) if verification.get("expectedLaunchOutput") else None),
+            functionality_args=tuple(
+                _safe_argument(item)
+                for item in verification.get("functionalityArgs", ["--self-test"])
+            ),
+            expected_launch_output=(
+                str(verification["expectedLaunchOutput"])
+                if verification.get("expectedLaunchOutput")
+                else None
+            ),
             expected_functionality_output=(
                 str(verification["expectedFunctionalityOutput"])
                 if verification.get("expectedFunctionalityOutput")
@@ -266,7 +279,9 @@ def _safe_argument(value: Any) -> str:
     return argument
 
 
-def _recipe_match_blockers(recipe: Recipe, inspection: DebInspection) -> tuple[list[dict[str, Any]], list[dict[str, str]]]:
+def _recipe_match_blockers(
+    recipe: Recipe, inspection: DebInspection
+) -> tuple[list[dict[str, Any]], list[dict[str, str]]]:
     blockers: list[dict[str, Any]] = []
     package = inspection.package
     for field, expected in (
@@ -313,7 +328,10 @@ def _recipe_match_blockers(recipe: Recipe, inspection: DebInspection) -> tuple[l
             blockers.append(
                 {
                     "code": "unsupported_dependency",
-                    "message": f"Dependency '{dependency['raw']}' has no explicit supported Arch mapping.",
+                    "message": (
+                        f"Dependency '{dependency['raw']}' "
+                        "has no explicit supported Arch mapping."
+                    ),
                     "severity": "blocking",
                     "dependency": dependency["raw"],
                 }
@@ -321,5 +339,7 @@ def _recipe_match_blockers(recipe: Recipe, inspection: DebInspection) -> tuple[l
         else:
             mapping = supported_alternatives[0]
             assert mapping is not None
-            mappings.append({"debian": mapping.debian, "arch": mapping.arch, "constraint": mapping.constraint})
+            mappings.append(
+                {"debian": mapping.debian, "arch": mapping.arch, "constraint": mapping.constraint}
+            )
     return blockers, mappings

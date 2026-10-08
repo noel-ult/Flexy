@@ -68,14 +68,31 @@ class KubernetesJobRunner:
                             {
                                 "name": "builder",
                                 "image": request.image,
-                                "args": ["/app/run-build", "--input", request.input_url, "--callback", request.output_callback_url],
+                                "args": [
+                                    "/app/run-build",
+                                    "--input",
+                                    request.input_url,
+                                    "--callback",
+                                    request.output_callback_url,
+                                ],
                                 "env": [
-                                    {"name": "FLEXY_ARTIFACT_PREFIX", "value": request.artifact_prefix},
+                                    {
+                                        "name": "FLEXY_ARTIFACT_PREFIX",
+                                        "value": request.artifact_prefix,
+                                    },
                                     {"name": "HOME", "value": "/work"},
                                 ],
                                 "resources": {
-                                    "requests": {"cpu": "1", "memory": "1Gi", "ephemeral-storage": "512Mi"},
-                                    "limits": {"cpu": "1", "memory": "1Gi", "ephemeral-storage": "512Mi"},
+                                    "requests": {
+                                        "cpu": "1",
+                                        "memory": "1Gi",
+                                        "ephemeral-storage": "512Mi",
+                                    },
+                                    "limits": {
+                                        "cpu": "1",
+                                        "memory": "1Gi",
+                                        "ephemeral-storage": "512Mi",
+                                    },
                                 },
                                 "securityContext": {
                                     "allowPrivilegeEscalation": False,
@@ -98,5 +115,6 @@ class KubernetesJobRunner:
         # the model.  Production integration must use a narrowly scoped controller.
         _ = self.render_job(request)
         raise BuildEnvironmentUnavailable(
-            "Kubernetes executor requires the deployment's scoped Job controller and artifact callback integration."
+            "Kubernetes executor requires the deployment's scoped Job controller "
+            "and artifact callback integration."
         )

@@ -3,21 +3,22 @@ from __future__ import annotations
 import tempfile
 import unittest
 from dataclasses import replace
+from importlib.util import find_spec
 from pathlib import Path
 from unittest.mock import patch
 
-try:
+HAS_API_RUNTIME = all(
+    find_spec(module) is not None
+    for module in ("fastapi", "httpx", "sqlalchemy", "dramatiq", "multipart")
+)
+
+if HAS_API_RUNTIME:
     from fastapi.testclient import TestClient
 
     import app.main as api_main
     from app.config import Settings
     from app.domain import JobStatus
     from app.main import create_app
-
-    HAS_API_RUNTIME = True
-except (ImportError, ModuleNotFoundError):
-    HAS_API_RUNTIME = False
-
 
 ROOT = Path(__file__).resolve().parents[2]
 FIXTURE = ROOT / "fixtures" / "flexy-demo_1.0.0_amd64.deb"
@@ -55,7 +56,13 @@ class ApiContractTests(unittest.TestCase):
         response = self.client.post(
             "/v1/jobs",
             data={"target_os": "arch", "target_arch": "x86_64"},
-            files={"package": (FIXTURE.name, FIXTURE.read_bytes(), "application/vnd.debian.binary-package")},
+            files={
+                "package": (
+                    FIXTURE.name,
+                    FIXTURE.read_bytes(),
+                    "application/vnd.debian.binary-package",
+                )
+            },
         )
         self.assertEqual(response.status_code, 202, response.text)
         payload = response.json()
@@ -64,7 +71,9 @@ class ApiContractTests(unittest.TestCase):
     def test_capability_guards_job_and_scoped_report_download(self) -> None:
         job_id, capability = self._upload()
         self.assertEqual(self.client.get(f"/v1/jobs/{job_id}").status_code, 404)
-        job_response = self.client.get(f"/v1/jobs/{job_id}", headers={"X-Job-Capability": capability})
+        job_response = self.client.get(
+            f"/v1/jobs/{job_id}", headers={"X-Job-Capability": capability}
+        )
         self.assertEqual(job_response.status_code, 200)
         self.assertEqual(job_response.json()["status"], "analyzing")
 
@@ -79,9 +88,14 @@ class ApiContractTests(unittest.TestCase):
             report_key=report_object_key,
             status=JobStatus.READY,
         )
-        ready = self.client.get(f"/v1/jobs/{job_id}", headers={"X-Job-Capability": capability}).json()
+        ready = self.client.get(
+            f"/v1/jobs/{job_id}", headers={"X-Job-Capability": capability}
+        ).json()
         self.assertTrue(ready["analysis"]["recipe"]["supported"])
-        self.assertEqual(ready["artifacts"], [{"kind": "report", "name": "compatibility-report.json", "available": True}])
+        self.assertEqual(
+            ready["artifacts"],
+            [{"kind": "report", "name": "compatibility-report.json", "available": True}],
+        )
 
         grant = self.client.post(
             f"/v1/jobs/{job_id}/downloads/report", headers={"X-Job-Capability": capability}

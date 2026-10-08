@@ -80,16 +80,6 @@ jobs:
       - name: Lint backend
         working-directory: backend
         run: ruff check .
-      - name: Backend formatter diagnostics
-        if: failure()
-        working-directory: backend
-        run: |
-          ruff check --fix --exit-zero .
-          ruff format .
-          echo FLEXY_PATCH_BEGIN
-          git diff -- .
-          echo FLEXY_PATCH_END
-          ruff check .
       - name: Test backend
         if: ${{ !cancelled() }}
         working-directory: backend

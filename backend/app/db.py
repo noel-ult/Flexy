@@ -17,11 +17,15 @@ def create_engine_for_settings(settings: Settings | None = None) -> Engine:
     connect_args: dict[str, object] = {}
     if settings.database_url.startswith("sqlite"):
         connect_args["check_same_thread"] = False
-    return create_engine(settings.database_url, future=True, pool_pre_ping=True, connect_args=connect_args)
+    return create_engine(
+        settings.database_url, future=True, pool_pre_ping=True, connect_args=connect_args
+    )
 
 
 def create_session_factory(settings: Settings | None = None) -> sessionmaker[Session]:
-    return sessionmaker(bind=create_engine_for_settings(settings), autoflush=False, expire_on_commit=False)
+    return sessionmaker(
+        bind=create_engine_for_settings(settings), autoflush=False, expire_on_commit=False
+    )
 
 
 @contextmanager

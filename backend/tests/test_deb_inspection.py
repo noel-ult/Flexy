@@ -8,7 +8,6 @@ from app.inspection import DebInspector, InspectionLimits, PackageInspectionErro
 
 from .helpers import write_deb
 
-
 ROOT = Path(__file__).resolve().parents[2]
 FIXTURES = ROOT / "fixtures"
 
@@ -26,7 +25,9 @@ class DebInspectionTests(unittest.TestCase):
     def test_unsupported_fixture_is_never_executed_and_reports_maintainer_script(self) -> None:
         inspection = DebInspector().inspect(FIXTURES / "unsupported-demo_1.0.0_amd64.deb")
         self.assertIn("postinst", inspection.maintainer_scripts)
-        self.assertIn("unsupported_maintainer_script", {item["code"] for item in inspection.blockers})
+        self.assertIn(
+            "unsupported_maintainer_script", {item["code"] for item in inspection.blockers}
+        )
 
     def test_path_traversal_is_rejected_before_staging(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -68,7 +69,9 @@ class DebInspectionTests(unittest.TestCase):
             )
             destination = root / "stage"
             extracted = safe_extract_data(package, destination)
-            self.assertEqual([item.relative_to(destination).as_posix() for item in extracted], ["usr/bin/test"])
+            self.assertEqual(
+                [item.relative_to(destination).as_posix() for item in extracted], ["usr/bin/test"]
+            )
             self.assertEqual((destination / "usr/bin/test").read_bytes(), b"payload")
             self.assertFalse(marker.exists())
 
@@ -82,7 +85,9 @@ class DebInspectionTests(unittest.TestCase):
                 data_entries=[("./usr/share/blob", b"x" * 64, 0o644, None)],
             )
             with self.assertRaises(PackageInspectionError) as raised:
-                DebInspector(InspectionLimits(max_expanded_bytes=32, max_file_count=10)).inspect(package)
+                DebInspector(InspectionLimits(max_expanded_bytes=32, max_file_count=10)).inspect(
+                    package
+                )
             self.assertEqual(raised.exception.code, "archive_expanded_size_exceeded")
 
 

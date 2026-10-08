@@ -9,7 +9,6 @@ from pathlib import Path
 from app.inspection import DebInspector
 from app.recipes import RecipeError, RecipeRegistry
 
-
 ROOT = Path(__file__).resolve().parents[2]
 FIXTURES = ROOT / "fixtures"
 RECIPES = ROOT / "backend" / "fixtures" / "recipes"
@@ -25,7 +24,9 @@ class RecipeSelectionTests(unittest.TestCase):
         self.assertTrue(selected.supported)
         self.assertEqual(selected.recipe.identifier, "flexy-demo-1.0.0-amd64-arch-x86_64")
         self.assertEqual(selected.mapped_dependencies[0]["arch"], "glibc")
-        self.assertIn('"$startdir/payload/usr/bin/flexy-demo"', selected.recipe.generated_pkgbuild())
+        self.assertIn(
+            '"$startdir/payload/usr/bin/flexy-demo"', selected.recipe.generated_pkgbuild()
+        )
 
     def test_modified_payload_cannot_reuse_demo_recipe(self) -> None:
         inspection = DebInspector().inspect(FIXTURES / "flexy-demo_1.0.0_amd64.deb")

@@ -30,6 +30,7 @@ try:  # Keep inspection-only tools importable before optional queue dependencies
         return cleanup_expired_jobs()
 
 except ImportError:  # pragma: no cover - exercised only before dependencies are installed
+
     class _UnavailableActor:
         def __init__(self, function):
             self.function = function

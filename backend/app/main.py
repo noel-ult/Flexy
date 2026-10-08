@@ -20,7 +20,7 @@ from sqlalchemy import text
 
 from .config import Settings, get_settings
 from .db import initialize_local_schema
-from .domain import ArtifactKind, JobStatus, SUPPORTED_TARGET
+from .domain import SUPPORTED_TARGET, ArtifactKind, JobStatus
 from .queue import QueueUnavailable, enqueue_analysis, enqueue_build
 from .repository import AccessDeniedError, InvalidJobStateError, JobRepository, NotFoundError
 from .security import new_job_id, safe_download_filename
@@ -100,7 +100,9 @@ def _job_response(job: Any, repository: JobRepository | None = None) -> dict[str
                 "message": item.message,
                 "createdAt": _iso(item.created_at),
             }
-            for item in repository.logs_after(job.id, max(0, _last_log_sequence(repository, job.id) - 200))
+            for item in repository.logs_after(
+                job.id, max(0, _last_log_sequence(repository, job.id) - 200)
+            )
         ]
     package_name = (job.analysis_json or {}).get("package", {}).get("name")
     package_version = (job.analysis_json or {}).get("package", {}).get("version")
@@ -133,14 +135,22 @@ def _job_response(job: Any, repository: JobRepository | None = None) -> dict[str
         "analysis": job.analysis_json,
         "blockers": blockers,
         "compatibility": {
-            "supported": job.status in {JobStatus.READY.value, JobStatus.BUILD_QUEUED.value, JobStatus.BUILDING.value, JobStatus.SUCCEEDED.value}
+            "supported": job.status
+            in {
+                JobStatus.READY.value,
+                JobStatus.BUILD_QUEUED.value,
+                JobStatus.BUILDING.value,
+                JobStatus.SUCCEEDED.value,
+            }
             and not blockers,
             "recipeId": job.recipe_id,
             "blockers": blockers,
             "limitations": [
                 "Changing a package format does not make Windows or macOS binaries run on Linux.",
-                "A successful build alone does not prove installation, launch, desktop compatibility, or functionality.",
-                "This browser uses a remote conversion service; downloaded software runs on your computer.",
+                "A successful build alone does not prove installation, launch, "
+                "desktop compatibility, or functionality.",
+                "This browser uses a remote conversion service; "
+                "downloaded software runs on your computer.",
             ],
         },
         "verification": job.verification_json
@@ -205,7 +215,9 @@ def _require_owned_job(
         # Do not turn a guessed job id into an authorization oracle.
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found") from exc
     if _as_utc(job.expires_at) < datetime.now(UTC):
-        raise HTTPException(status_code=status.HTTP_410_GONE, detail="This job has expired and is being deleted.")
+        raise HTTPException(
+            status_code=status.HTTP_410_GONE, detail="This job has expired and is being deleted."
+        )
     return job, container
 
 
@@ -263,7 +275,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app = FastAPI(
         title="Flexy API",
         version="0.1.0",
-        description="Safe, recipe-based remote package conversion. It does not promise universal compatibility.",
+        description=(
+            "Safe, recipe-based remote package conversion. "
+            "It does not promise universal compatibility."
+        ),
         lifespan=lifespan,
     )
     app.state.container = api_container
@@ -291,7 +306,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             with container.repository.sessions() as session:
                 session.execute(text("SELECT 1"))
         except Exception:
-            return JSONResponse(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, content={"status": "unavailable"})
+            return JSONResponse(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE, content={"status": "unavailable"}
+            )
         return JSONResponse(content={"status": "ready"})
 
     @app.post("/v1/jobs", status_code=status.HTTP_202_ACCEPTED)
@@ -308,10 +325,19 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             )
         filename = safe_download_filename(package.filename or "upload.deb", "upload.deb")
         if not filename.lower().endswith(".deb"):
-            raise HTTPException(status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, detail="Upload a Debian .deb package.")
+            raise HTTPException(
+                status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+                detail="Upload a Debian .deb package.",
+            )
         content_length = request.headers.get("content-length")
-        if content_length and content_length.isdigit() and int(content_length) > configured_settings.max_upload_bytes + 128 * 1024:
-            raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="Upload is too large.")
+        if (
+            content_length
+            and content_length.isdigit()
+            and int(content_length) > configured_settings.max_upload_bytes + 128 * 1024
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="Upload is too large."
+            )
         temporary, size, digest = await _stream_upload(package, configured_settings)
         job_id = new_job_id()
         container: ServiceContainer = request.app.state.container
@@ -325,7 +351,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 upload_sha256=digest,
                 upload_size=size,
             )
-            container.store.put_file(job.upload_key, temporary, "application/vnd.debian.binary-package")
+            container.store.put_file(
+                job.upload_key, temporary, "application/vnd.debian.binary-package"
+            )
             try:
                 enqueue_analysis(job.id)
             except QueueUnavailable as error:
@@ -334,7 +362,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     code="queue_unavailable",
                     message="Analysis worker is unavailable; the package was not analyzed.",
                 )
-                raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(error)) from error
+                raise HTTPException(
+                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(error)
+                ) from error
         finally:
             temporary.unlink(missing_ok=True)
         return {
@@ -345,7 +375,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         }
 
     @app.get("/v1/jobs/{job_id}")
-    async def get_job(owned: Annotated[tuple[Any, ServiceContainer], Depends(_require_owned_job)]) -> dict[str, Any]:
+    async def get_job(
+        owned: Annotated[tuple[Any, ServiceContainer], Depends(_require_owned_job)],
+    ) -> dict[str, Any]:
         job, container = owned
         return _job_response(job, container.repository)
 
@@ -364,16 +396,27 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 try:
                     current = container.repository.get(job_id)
                 except NotFoundError:
-                    yield "event: end\ndata: {\"reason\":\"deleted\"}\n\n"
+                    yield 'event: end\ndata: {"reason":"deleted"}\n\n'
                     return
                 if current.status != last_status:
-                    payload = json.dumps({"id": current.id, "status": current.status, "verification": current.verification_json})
+                    payload = json.dumps(
+                        {
+                            "id": current.id,
+                            "status": current.status,
+                            "verification": current.verification_json,
+                        }
+                    )
                     yield f"event: status\ndata: {payload}\n\n"
                     last_status = current.status
                 for item in container.repository.logs_after(job_id, sequence):
                     sequence = item.sequence
                     payload = json.dumps(
-                        {"sequence": item.sequence, "level": item.level, "message": item.message, "createdAt": _iso(item.created_at)}
+                        {
+                            "sequence": item.sequence,
+                            "level": item.level,
+                            "message": item.message,
+                            "createdAt": _iso(item.created_at),
+                        }
                     )
                     yield f"event: log\ndata: {payload}\n\n"
                 if current.status in {
@@ -389,10 +432,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 yield ": keep-alive\n\n"
                 await asyncio.sleep(0.75)
 
-        return StreamingResponse(events(), media_type="text/event-stream", headers={"Cache-Control": "no-store"})
+        return StreamingResponse(
+            events(), media_type="text/event-stream", headers={"Cache-Control": "no-store"}
+        )
 
     @app.post("/v1/jobs/{job_id}/build", status_code=status.HTTP_202_ACCEPTED)
-    async def start_build(owned: Annotated[tuple[Any, ServiceContainer], Depends(_require_owned_job)]) -> dict[str, Any]:
+    async def start_build(
+        owned: Annotated[tuple[Any, ServiceContainer], Depends(_require_owned_job)],
+    ) -> dict[str, Any]:
         job, container = owned
         try:
             queued = container.repository.queue_build(job.id)
@@ -405,7 +452,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 code="queue_unavailable",
                 message="Build worker is unavailable; no build was started.",
             )
-            raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)) from exc
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)
+            ) from exc
         return _job_response(container.repository.get(queued.id), container.repository)
 
     @app.post("/v1/jobs/{job_id}/downloads/{artifact}")
@@ -435,7 +484,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 raise ArtifactStoreError("artifact missing")
             file_object = container.store.open(object_key)
         except (AccessDeniedError, NotFoundError, ArtifactStoreError):
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Download is unavailable") from None
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Download is unavailable"
+            ) from None
         if kind == ArtifactKind.PACKAGE:
             name = safe_download_filename(Path(object_key).name, "converted.pkg.tar.zst")
             media_type = "application/zstd"

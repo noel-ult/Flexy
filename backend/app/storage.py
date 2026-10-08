@@ -10,8 +10,8 @@ import io
 import os
 import shutil
 from abc import ABC, abstractmethod
-from collections.abc import BinaryIO
 from pathlib import Path, PurePosixPath
+from typing import BinaryIO
 
 from .config import Settings, get_settings
 
@@ -166,7 +166,9 @@ class S3ArtifactStore(ArtifactStore):
         for page in paginator.paginate(Bucket=self.bucket, Prefix=prefix):
             objects = [{"Key": item["Key"]} for item in page.get("Contents", [])]
             if objects:
-                self.client.delete_objects(Bucket=self.bucket, Delete={"Objects": objects, "Quiet": True})
+                self.client.delete_objects(
+                    Bucket=self.bucket, Delete={"Objects": objects, "Quiet": True}
+                )
 
 
 def create_artifact_store(settings: Settings | None = None) -> ArtifactStore:

@@ -10,14 +10,16 @@ from app.config import Settings
 from app.recipes import RecipeRegistry
 from app.runners import BubblewrapRunner, BuildEnvironmentUnavailable
 
-
 ROOT = Path(__file__).resolve().parents[2]
 FIXTURES = ROOT / "fixtures"
 RECIPES = ROOT / "backend" / "fixtures" / "recipes"
 
 
 @unittest.skipUnless(
-    shutil.which("bwrap") and shutil.which("unshare") and shutil.which("makepkg") and shutil.which("pacman"),
+    shutil.which("bwrap")
+    and shutil.which("unshare")
+    and shutil.which("makepkg")
+    and shutil.which("pacman"),
     "requires local Arch build tools and Bubblewrap",
 )
 class LocalRunnerIntegrationTests(unittest.TestCase):
@@ -30,12 +32,16 @@ class LocalRunnerIntegrationTests(unittest.TestCase):
                 upload_dir=Path(temporary) / "uploads",
                 job_timeout_seconds=120,
             )
-            recipe = RecipeRegistry.from_directory(RECIPES).get("flexy-demo-1.0.0-amd64-arch-x86_64")
+            recipe = RecipeRegistry.from_directory(RECIPES).get(
+                "flexy-demo-1.0.0-amd64-arch-x86_64"
+            )
             assert recipe is not None
             runner = BubblewrapRunner(settings)
             result = None
             try:
-                result = runner.run(FIXTURES / "flexy-demo_1.0.0_amd64.deb", recipe, lambda _level, _line: None)
+                result = runner.run(
+                    FIXTURES / "flexy-demo_1.0.0_amd64.deb", recipe, lambda _level, _line: None
+                )
             except BuildEnvironmentUnavailable as error:
                 self.skipTest(str(error))
             try:

@@ -63,7 +63,7 @@ class Settings:
     cleanup_interval_seconds: int
 
     @classmethod
-    def from_env(cls) -> "Settings":
+    def from_env(cls) -> Settings:
         backend_root = Path(__file__).resolve().parents[1]
         default_data = backend_root / "data"
         recipe_dir = Path(os.getenv("FLEXY_RECIPE_DIR", backend_root / "fixtures" / "recipes"))

@@ -30,7 +30,7 @@ class ServiceContainer:
     bwrap_runner: BubblewrapRunner
 
     @classmethod
-    def create(cls, settings: Settings | None = None) -> "ServiceContainer":
+    def create(cls, settings: Settings | None = None) -> ServiceContainer:
         settings = settings or get_settings()
         sessions = create_session_factory(settings)
         limits = InspectionLimits(
@@ -75,9 +75,13 @@ def package_key(job_id: str, name: str) -> str:
     return f"artifacts/{job_id}/{safe_name or 'converted.pkg.tar.zst'}"
 
 
-def _temporary_upload(container: ServiceContainer, job_id: str, upload_object_key: str) -> tuple[Path, Path]:
+def _temporary_upload(
+    container: ServiceContainer, job_id: str, upload_object_key: str
+) -> tuple[Path, Path]:
     container.settings.work_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
-    work = Path(tempfile.mkdtemp(prefix=f"flexy-job-{job_id[:8]}-", dir=container.settings.work_dir))
+    work = Path(
+        tempfile.mkdtemp(prefix=f"flexy-job-{job_id[:8]}-", dir=container.settings.work_dir)
+    )
     source = container.store.materialize(upload_object_key, work / "source.deb")
     return work, source
 
@@ -103,7 +107,8 @@ def _compatibility_report(
             "limitations": [
                 "A package-format conversion does not make Windows or macOS binaries run on Linux.",
                 "Package creation alone is not desktop compatibility or functionality proof.",
-                "The browser only controls the remote conversion service; any downloaded package runs on your computer.",
+                "The browser only controls the remote conversion service; "
+                "any downloaded package runs on your computer.",
             ],
         },
         "analysis": analysis,
@@ -125,7 +130,9 @@ def process_analysis(job_id: str, container: ServiceContainer | None = None) -> 
         job = container.repository.get(job_id)
         if job.status != JobStatus.ANALYZING.value:
             return
-        container.repository.append_log(job_id, "info", "Inspecting Debian metadata and payload without executing it.")
+        container.repository.append_log(
+            job_id, "info", "Inspecting Debian metadata and payload without executing it."
+        )
         workspace, source = _temporary_upload(container, job_id, job.upload_key)
         inspection = container.inspector.inspect(source)
         selection = container.recipes.select(inspection, job.target_os, job.target_arch)
@@ -141,11 +148,19 @@ def process_analysis(job_id: str, container: ServiceContainer | None = None) -> 
                 None,
             )
             if mapped:
-                dependency.update({"arch": mapped["arch"], "status": "supported", "constraint": mapped["constraint"]})
+                dependency.update(
+                    {
+                        "arch": mapped["arch"],
+                        "status": "supported",
+                        "constraint": mapped["constraint"],
+                    }
+                )
             else:
                 dependency["status"] = "unsupported"
         for executable in analysis["executables"]:
-            executable["compatible"] = executable.get("kind") == "elf" and executable.get("architecture") == "x86_64"
+            executable["compatible"] = (
+                executable.get("kind") == "elf" and executable.get("architecture") == "x86_64"
+            )
         analysis["recipe"] = {
             "id": selection.recipe.identifier if selection.recipe else None,
             "supported": selection.supported,
@@ -187,16 +202,22 @@ def process_analysis(job_id: str, container: ServiceContainer | None = None) -> 
             status=status,
         )
         if status == JobStatus.READY:
-            container.repository.append_log(job_id, "info", "Exact supported recipe found; build can be started.")
+            container.repository.append_log(
+                job_id, "info", "Exact supported recipe found; build can be started."
+            )
         else:
-            container.repository.append_log(job_id, "warning", "No safe supported conversion recipe is available.")
+            container.repository.append_log(
+                job_id, "warning", "No safe supported conversion recipe is available."
+            )
     except PackageInspectionError as error:
         blocker = error.as_blocker()
         analysis = {"sourceFormat": "deb", "safeToAnalyze": False}
         destination = report_key(job_id)
         report = _compatibility_report(job_id, analysis, [blocker], None, error=blocker)
         try:
-            container.store.put_bytes(destination, json.dumps(report, indent=2).encode("utf-8"), "application/json")
+            container.store.put_bytes(
+                destination, json.dumps(report, indent=2).encode("utf-8"), "application/json"
+            )
             container.repository.set_analysis(
                 job_id,
                 analysis=analysis,
@@ -242,18 +263,24 @@ def process_build(job_id: str, container: ServiceContainer | None = None) -> Non
         workspace, source = _temporary_upload(container, job_id, job.upload_key)
         # Reinspect and reselect before the expensive build: persisted readiness is
         # not treated as authority to build a modified or corrupted object.
-        selection = container.recipes.select(container.inspector.inspect(source), job.target_os, job.target_arch)
+        selection = container.recipes.select(
+            container.inspector.inspect(source), job.target_os, job.target_arch
+        )
         if selection.recipe is None or selection.recipe.identifier != recipe.identifier:
             container.repository.complete_build(
                 job_id,
                 package_key=None,
-                verification=_not_run_verification("Payload no longer matches the approved recipe."),
+                verification=_not_run_verification(
+                    "Payload no longer matches the approved recipe."
+                ),
                 status=JobStatus.FAILED,
                 error_code="recipe_revalidation_failed",
                 error_message="The uploaded package no longer matches the approved recipe.",
             )
             return
-        container.repository.append_log(job_id, "info", "Starting isolated build with no network access.")
+        container.repository.append_log(
+            job_id, "info", "Starting isolated build with no network access."
+        )
         if container.settings.build_executor == "bwrap":
             build_result = container.bwrap_runner.run(
                 source,
@@ -264,7 +291,8 @@ def process_build(job_id: str, container: ServiceContainer | None = None) -> Non
             # The controller contract intentionally fails closed until deployment
             # supplies scoped input/output handoff rather than borrowing host access.
             raise BuildEnvironmentUnavailable(
-                "Kubernetes execution is not wired with a scoped Job controller and artifact callback in this deployment."
+                "Kubernetes execution is not wired with a scoped Job controller "
+                "and artifact callback in this deployment."
             )
         else:
             raise BuildEnvironmentUnavailable("No supported isolated build executor is configured.")
@@ -272,7 +300,9 @@ def process_build(job_id: str, container: ServiceContainer | None = None) -> Non
         artifact_object_key: str | None = None
         if build_result.package_path is not None:
             artifact_object_key = package_key(job_id, build_result.package_path.name)
-            container.store.put_file(artifact_object_key, build_result.package_path, "application/zstd")
+            container.store.put_file(
+                artifact_object_key, build_result.package_path, "application/zstd"
+            )
         status = JobStatus.SUCCEEDED if artifact_object_key else JobStatus.FAILED
         error_message = None if artifact_object_key else "No Arch package was created."
         container.repository.complete_build(
@@ -294,7 +324,12 @@ def process_build(job_id: str, container: ServiceContainer | None = None) -> Non
             error_code="build_environment_unavailable",
             error_message=str(error),
         )
-        _update_report_after_build(container, job_id, verification, error={"code": "build_environment_unavailable", "message": str(error)})
+        _update_report_after_build(
+            container,
+            job_id,
+            verification,
+            error={"code": "build_environment_unavailable", "message": str(error)},
+        )
     except PackageInspectionError as error:
         verification = _not_run_verification("Safe restaging failed.")
         container.repository.complete_build(
@@ -355,7 +390,11 @@ def _update_report_after_build(
             error,
         )
         if job.report_key:
-            container.store.put_bytes(job.report_key, json.dumps(report, indent=2, sort_keys=True).encode("utf-8"), "application/json")
+            container.store.put_bytes(
+                job.report_key,
+                json.dumps(report, indent=2, sort_keys=True).encode("utf-8"),
+                "application/json",
+            )
     except Exception:
         # Build result persistence must not be hidden by a report-rendering failure.
         return

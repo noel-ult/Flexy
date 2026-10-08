@@ -75,7 +75,9 @@ class JobRepository:
         )
         with self.sessions.begin() as session:
             session.add(job)
-            self._append_log_in_session(session, job.id, "info", "Upload accepted; analysis queued.")
+            self._append_log_in_session(
+                session, job.id, "info", "Upload accepted; analysis queued."
+            )
         return job, capability
 
     def get(self, job_id: str) -> Job:
@@ -99,11 +101,15 @@ class JobRepository:
                 raise NotFoundError("Job not found")
             self._append_log_in_session(session, job_id, level, safe_message)
 
-    def _append_log_in_session(self, session: Session, job_id: str, level: str, message: str) -> None:
+    def _append_log_in_session(
+        self, session: Session, job_id: str, level: str, message: str
+    ) -> None:
         sequence = session.scalar(
             select(func.coalesce(func.max(JobLog.sequence), 0) + 1).where(JobLog.job_id == job_id)
         )
-        session.add(JobLog(job_id=job_id, sequence=int(sequence or 1), level=level, message=message))
+        session.add(
+            JobLog(job_id=job_id, sequence=int(sequence or 1), level=level, message=message)
+        )
 
     def logs_after(self, job_id: str, after: int = 0) -> list[JobLog]:
         with self.sessions() as session:
@@ -171,7 +177,11 @@ class JobRepository:
         with self.sessions.begin() as session:
             result = session.execute(
                 update(Job)
-                .where(Job.id == job_id, Job.status == JobStatus.READY.value, Job.recipe_id.is_not(None))
+                .where(
+                    Job.id == job_id,
+                    Job.status == JobStatus.READY.value,
+                    Job.recipe_id.is_not(None),
+                )
                 .values(status=JobStatus.BUILD_QUEUED.value, build_started_at=self._now())
             )
             if result.rowcount != 1:
@@ -191,7 +201,9 @@ class JobRepository:
                 .values(status=JobStatus.BUILDING.value)
             )
             if result.rowcount:
-                self._append_log_in_session(session, job_id, "info", "Isolated build environment started.")
+                self._append_log_in_session(
+                    session, job_id, "info", "Isolated build environment started."
+                )
                 return True
             return False
 
@@ -221,8 +233,14 @@ class JobRepository:
             job.error_code = error_code
             job.error_message = error_message
             job.completed_at = self._now()
-            message = "Build completed." if status == JobStatus.SUCCEEDED else (error_message or "Build failed.")
-            self._append_log_in_session(session, job_id, "info" if status == JobStatus.SUCCEEDED else "error", message)
+            message = (
+                "Build completed."
+                if status == JobStatus.SUCCEEDED
+                else (error_message or "Build failed.")
+            )
+            self._append_log_in_session(
+                session, job_id, "info" if status == JobStatus.SUCCEEDED else "error", message
+            )
 
     def mint_download_token(self, job_id: str, kind: ArtifactKind) -> tuple[str, datetime]:
         token = new_secret()
@@ -247,8 +265,14 @@ class JobRepository:
     def consume_download_token(self, token: str) -> tuple[Job, ArtifactKind]:
         now = self._now()
         with self.sessions.begin() as session:
-            grant = session.scalar(select(DownloadToken).where(DownloadToken.token_hash == token_hash(token)))
-            if grant is None or grant.used_at is not None or self._is_expired(grant.expires_at, now):
+            grant = session.scalar(
+                select(DownloadToken).where(DownloadToken.token_hash == token_hash(token))
+            )
+            if (
+                grant is None
+                or grant.used_at is not None
+                or self._is_expired(grant.expires_at, now)
+            ):
                 raise AccessDeniedError("Download token is invalid or expired")
             consumed = session.execute(
                 update(DownloadToken)

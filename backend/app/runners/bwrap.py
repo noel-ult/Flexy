@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from ..config import Settings
-from ..inspection import InspectionLimits, PackageInspectionError, safe_extract_data
+from ..inspection import InspectionLimits, safe_extract_data
 from ..recipes import Recipe
 
 
@@ -115,19 +115,29 @@ class BubblewrapRunner:
         ).resolve()
         deadline = time.monotonic() + self.settings.job_timeout_seconds
         log_budget = _LogBudget(self.settings.log_limit_bytes)
+
         def limited_log(level: str, message: str) -> None:
             log_budget.emit(log, level, message)
+
         try:
             self._prepare_workspace(workspace, package_path, recipe)
             limited_log("info", "Payload staged without executing package scripts.")
             if time.monotonic() >= deadline:
                 verification = {
-                    "packageCreation": CheckResult("failed", "Payload staging exceeded the job duration limit.").to_dict(),
-                    "installation": CheckResult("not_run", "Package creation did not succeed.").to_dict(),
+                    "packageCreation": CheckResult(
+                        "failed", "Payload staging exceeded the job duration limit."
+                    ).to_dict(),
+                    "installation": CheckResult(
+                        "not_run", "Package creation did not succeed."
+                    ).to_dict(),
                     "launch": CheckResult("not_run", "Package creation did not succeed.").to_dict(),
-                    "functionality": CheckResult("not_run", "Package creation did not succeed.").to_dict(),
+                    "functionality": CheckResult(
+                        "not_run", "Package creation did not succeed."
+                    ).to_dict(),
                 }
-                return BuildRunResult(workspace=workspace, package_path=None, verification=verification)
+                return BuildRunResult(
+                    workspace=workspace, package_path=None, verification=verification
+                )
             build = self._run_command(
                 workspace,
                 [
@@ -146,24 +156,36 @@ class BubblewrapRunner:
             creation = self._check_build_artifact(workspace, build)
             verification: dict[str, dict[str, str]] = {
                 "packageCreation": creation.to_dict(),
-                "installation": CheckResult("not_run", "Package creation did not succeed.").to_dict(),
+                "installation": CheckResult(
+                    "not_run", "Package creation did not succeed."
+                ).to_dict(),
                 "launch": CheckResult("not_run", "Package creation did not succeed.").to_dict(),
-                "functionality": CheckResult("not_run", "Package creation did not succeed.").to_dict(),
+                "functionality": CheckResult(
+                    "not_run", "Package creation did not succeed."
+                ).to_dict(),
             }
             package = self._find_package(workspace) if creation.state == "passed" else None
             if package is None:
-                return BuildRunResult(workspace=workspace, package_path=None, verification=verification)
+                return BuildRunResult(
+                    workspace=workspace, package_path=None, verification=verification
+                )
 
-            installation = self._verify_installation(workspace, package, recipe, limited_log, deadline)
+            installation = self._verify_installation(
+                workspace, package, recipe, limited_log, deadline
+            )
             verification["installation"] = installation.to_dict()
             if installation.state != "passed":
                 verification["launch"] = CheckResult(
-                    "unverified", "Launch verification skipped because installation verification failed."
+                    "unverified",
+                    "Launch verification skipped because installation verification failed.",
                 ).to_dict()
                 verification["functionality"] = CheckResult(
-                    "unverified", "Functionality verification skipped because installation verification failed."
+                    "unverified",
+                    "Functionality verification skipped because installation verification failed.",
                 ).to_dict()
-                return BuildRunResult(workspace=workspace, package_path=package, verification=verification)
+                return BuildRunResult(
+                    workspace=workspace, package_path=package, verification=verification
+                )
 
             launch = self._verify_entrypoint(
                 workspace,
@@ -185,7 +207,9 @@ class BubblewrapRunner:
             )
             verification["launch"] = launch.to_dict()
             verification["functionality"] = functionality.to_dict()
-            return BuildRunResult(workspace=workspace, package_path=package, verification=verification)
+            return BuildRunResult(
+                workspace=workspace, package_path=package, verification=verification
+            )
         except Exception:
             # Caller stores any useful report/log first; its finally block owns cleanup.
             raise
@@ -216,7 +240,9 @@ class BubblewrapRunner:
         (workspace / "makepkg.conf").write_text(_makepkg_config(), encoding="utf-8")
         (workspace / "pacman.conf").write_text(_pacman_config(), encoding="utf-8")
         uid, gid = os.getuid(), os.getgid()
-        (workspace / "etc" / "passwd").write_text(f"flexy:x:{uid}:{gid}:Flexy worker:/tmp:/bin/sh\n", encoding="utf-8")
+        (workspace / "etc" / "passwd").write_text(
+            f"flexy:x:{uid}:{gid}:Flexy worker:/tmp:/bin/sh\n", encoding="utf-8"
+        )
         (workspace / "etc" / "group").write_text(f"flexy:x:{gid}:\n", encoding="utf-8")
         (workspace / "etc" / "pacman.conf").write_text(_pacman_config(), encoding="utf-8")
 
@@ -354,7 +380,11 @@ class BubblewrapRunner:
             remaining = deadline - time.monotonic()
             if remaining <= 0 and process.poll() is None:
                 timed_out = True
-                log("error", f"Command exceeded the {self.settings.job_timeout_seconds} second job deadline.")
+                log(
+                    "error",
+                    f"Command exceeded the {self.settings.job_timeout_seconds} "
+                    "second job deadline.",
+                )
                 self._terminate_process_group(process)
             try:
                 line = lines.get(timeout=min(max(remaining, 0.01), 0.25))
@@ -385,7 +415,10 @@ class BubblewrapRunner:
 
     def _resource_limits(self) -> None:
         # Applied before exec to the local bwrap process and inherited by its child.
-        resource.setrlimit(resource.RLIMIT_CPU, (self.settings.job_timeout_seconds, self.settings.job_timeout_seconds + 1))
+        resource.setrlimit(
+            resource.RLIMIT_CPU,
+            (self.settings.job_timeout_seconds, self.settings.job_timeout_seconds + 1),
+        )
         address_limit = 1 * 1024 * 1024 * 1024
         resource.setrlimit(resource.RLIMIT_AS, (address_limit, address_limit))
         file_limit = self.settings.max_extraction_bytes + self.settings.max_upload_bytes
@@ -455,14 +488,22 @@ class BubblewrapRunner:
         )
         installed_entrypoint = workspace / "verify-root" / recipe.entrypoint
         if result.timed_out:
-            return CheckResult("failed", "Installation verification exceeded the job duration limit.")
+            return CheckResult(
+                "failed", "Installation verification exceeded the job duration limit."
+            )
         if result.return_code != 0:
-            return CheckResult("failed", f"pacman installation verification exited with status {result.return_code}.")
+            return CheckResult(
+                "failed",
+                f"pacman installation verification exited with status {result.return_code}.",
+            )
         if not installed_entrypoint.is_file():
-            return CheckResult("failed", "pacman completed but the recipe entrypoint was not installed.")
+            return CheckResult(
+                "failed", "pacman completed but the recipe entrypoint was not installed."
+            )
         return CheckResult(
             "passed",
-            "Package installed into a disposable verification root; dependency resolution was disabled in that empty root.",
+            "Package installed into a disposable verification root; "
+            "dependency resolution was disabled in that empty root.",
         )
 
     def _verify_entrypoint(
@@ -478,9 +519,14 @@ class BubblewrapRunner:
         command = [f"/app/{recipe.entrypoint}", *arguments]
         result = self._run_command(workspace, command, "/work", log, deadline, app_root=True)
         if result.timed_out:
-            return CheckResult("failed", f"{check_name.capitalize()} verification exceeded the job duration limit.")
+            return CheckResult(
+                "failed", f"{check_name.capitalize()} verification exceeded the job duration limit."
+            )
         if result.return_code != 0:
-            return CheckResult("failed", f"{check_name.capitalize()} command exited with status {result.return_code}.")
+            return CheckResult(
+                "failed",
+                f"{check_name.capitalize()} command exited with status {result.return_code}.",
+            )
         observed = result.output.strip()
         if expected_output is not None and observed != expected_output:
             return CheckResult(
@@ -488,7 +534,11 @@ class BubblewrapRunner:
                 f"{check_name.capitalize()} output did not match the recipe expectation.",
                 observed[:4_000],
             )
-        return CheckResult("passed", f"{check_name.capitalize()} command completed in the disposable root.", observed[:4_000])
+        return CheckResult(
+            "passed",
+            f"{check_name.capitalize()} command completed in the disposable root.",
+            observed[:4_000],
+        )
 
 
 def _makepkg_config() -> str:

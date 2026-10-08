@@ -5,7 +5,9 @@ import tarfile
 from pathlib import Path
 
 
-def make_tar(entries: list[tuple[str, bytes | str, int, str | None]], compression: str = "gz") -> bytes:
+def make_tar(
+    entries: list[tuple[str, bytes | str, int, str | None]], compression: str = "gz"
+) -> bytes:
     """Create a tiny tar for parser tests; entries are name/content/mode/link target."""
     stream = io.BytesIO()
     with tarfile.open(fileobj=stream, mode=f"w:{compression}") as archive:
