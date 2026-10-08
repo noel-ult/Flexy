@@ -115,7 +115,8 @@ class BubblewrapRunner:
         ).resolve()
         deadline = time.monotonic() + self.settings.job_timeout_seconds
         log_budget = _LogBudget(self.settings.log_limit_bytes)
-        limited_log = lambda level, message: log_budget.emit(log, level, message)
+        def limited_log(level: str, message: str) -> None:
+            log_budget.emit(log, level, message)
         try:
             self._prepare_workspace(workspace, package_path, recipe)
             limited_log("info", "Payload staged without executing package scripts.")
