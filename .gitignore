@@ -1,0 +1,30 @@
+# Local configuration and credentials
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Local service data and generated conversion artifacts
+data/
+artifacts/
+uploads/
+flexy.db
+backend/flexy.db
+
+# Language and framework outputs
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+*.egg-info/
+backend/.venv/
+web/node_modules/
+web/.next/
+web/out/
+
+# OS/editor files
+.DS_Store
+.idea/
+.vscode/
