@@ -33,8 +33,98 @@ fixture check below.
 
 ## Create the Compose service
 
-1. In Dokploy, create a **Docker Compose** service from this repository and set
-   its Compose Path to `compose.dokploy.yaml`.
+### Start here: GitHub integration
+
+Use **Docker Compose**, not an Application service or Custom Git provider.
+Keep the existing project, service ID, saved environment, and volumes; there
+is no reason to delete them to repair a failed image pull.
+
+1. In Dokploy **Settings -> Git Providers**, connect a GitHub App and grant
+   its installation access to `noel-ult/Flexy`. If already connected, reuse it.
+2. Select the **GitHub** provider on **Flexy Compose** with these settings:
+
+   | Setting | Value |
+   | --- | --- |
+   | Owner | `noel-ult` |
+   | Repository | `Flexy` |
+   | Branch | `main` |
+   | Compose path | `compose.dokploy.yaml` |
+   | Compose type | Docker Compose |
+   | Isolated Deployments | Enabled |
+   | Automatic deployment | Disabled during setup |
+
+3. Keep the previously verified env and the two HTTPS routes. The local helper
+   below can validate the App's repository/branch access, repair the failed
+   Custom Git source, and verify those settings without regenerating secrets.
+4. Review **Preview Compose**, then deploy. Inspect **Deployments** for build
+   logs; the runtime log dropdown requires a real container, not the
+   `select-a-container` placeholder. A failed image pull creates no application
+   container to select.
+
+GitHub integration still uses Git internally to fetch the repository; the
+important distinction is that Dokploy uses its connected GitHub App, not the
+Custom Git URL workflow. No shell Git command is needed to configure it.
+
+### Migrate the existing Flexy Application
+
+If you already saved the verified `flexy.noelbiju.in` environment in the
+Application service, the local standard-library helper copies it without
+regenerating credentials. It targets the existing Flexy project/environment;
+do not use it for a different account or deployment.
+
+```sh
+python3 scripts/dokploy_compose.py --apply
+```
+
+Enter your active Dokploy API key at the hidden prompt. Never paste it into
+chat, a command argument, a committed file, or an environment screenshot.
+The key needs service creation/configuration, environment read/write, and
+domain creation permissions for this project. The helper:
+
+- Creates **Flexy Compose** on the same server, or resumes its marked migration
+  service on a rerun. The original Application is not edited, stopped, or deleted.
+- Uses **GitHub** source `noel-ult/Flexy`, branch `main`, Compose path
+  `compose.dokploy.yaml`, Docker Compose mode, and isolated deployments.
+  It checks accessible GitHub providers, repository access, and branch access
+  before creating or updating a service. No Custom Git fallback is allowed.
+  It reuses the source Application's provider (or the already configured Compose
+  provider), or the only connected provider. Multiple providers require
+  `--github-id PROVIDER_ID`; that ID is metadata, not an API key. Automatic
+  deployment is disabled during setup.
+- Copies the saved environment exactly, verifies all settings by reading them
+  back, and creates the two HTTPS routes below. It preserves secrets and refuses
+  conflicting Compose env, active-service reconfiguration, or existing routes.
+- Keeps `BUILD_EXECUTOR=unavailable`. It never relaxes worker isolation.
+
+The previously created Custom Git Compose service can be switched with the same
+`--apply` command, even after a failed deployment. This exception permits only
+GitHub source fields to change, only for the known Flexy URL/main branch, with
+an unchanged env and exclusively failed/cancelled deployment history. It
+preserves routes, service ID, named volumes, and deployment history. Running
+services, successful deployment history, or unrelated configuration changes
+are not reconfigured automatically. The original Application is untouched.
+
+By default it does not deploy. Review **Preview Compose** and click **Deploy**.
+Alternatively, after reviewing the profile, `--apply --deploy` explicitly
+requests deployment; an accepted request does **not** prove build completion,
+TLS, readiness, or a working conversion. Use the printed deployment-log URL.
+Running without flags is read-only and checks the saved Compose configuration.
+
+The API has no atomic conditional-update contract. Do not edit these services
+concurrently with the helper. It stops rather than retrying an uncertain write;
+inspect Dokploy first, then rerun to resume the marked service. If the host is
+still assigned to the old Application, the helper preserves both services and
+reports a conflict rather than deleting a route. Resolve that routing conflict
+in Dokploy, then rerun. It checks conflicts within this environment; also check
+other projects on the same proxy before deployment. No Cloudflare changes are
+made. The helper uses the Dokploy v0.29.13 service/inventory shapes; an
+unrecognized response stops the operation without a success claim.
+
+### Manual setup
+
+1. In Dokploy, create a **Docker Compose** service, select **GitHub** and its
+   connected App, then select `noel-ult/Flexy`, branch `main`, and set Compose
+   Path to `compose.dokploy.yaml`. Do not select Custom Git.
 2. Turn on **Isolated Deployments**. Dokploy then creates a per-application
    network and connects Traefik to it; do not manually add `dokploy-network`.
 3. In the **Domains** tab, use Dokploy's native Domains integration (not host
@@ -61,6 +151,31 @@ Dokploy writes values from its Environment tab to a deployment-local `.env`,
 but Compose only sends values to a container when the Compose file explicitly
 references them. The provided production Compose file does this intentionally;
 do not add `env_file: .env` indiscriminately to every service.
+
+## Image-pull failures
+
+Both Compose profiles use `quay.io/minio/minio` and `quay.io/minio/mc`, retaining
+the previously pinned release tags. The Docker Hub `minio/minio` and `minio/mc`
+repositories were reported removed upstream; `docker login` is not a repair for
+a removed public repository. See the
+[Apache Doris registry migration](https://github.com/apache/doris/pull/67897).
+
+Before redeploying, an operator can check the exact references from the Dokploy
+deployment server (not inside a network-restricted worker):
+
+```sh
+docker manifest inspect quay.io/minio/minio:RELEASE.2025-04-22T22-12-26Z
+docker manifest inspect quay.io/minio/mc:RELEASE.2025-04-16T18-13-26Z
+```
+
+A manifest check proves registry access/architecture metadata, not container
+startup or full layer availability. The subsequent actual deployment must pull
+both images and pass the migration/storage/API health gates. If the exact tags
+are no longer accessible, stop and provision a reviewed image mirror/build or
+supported S3 storage; do not pick an arbitrary third-party image or `latest`.
+These are historical releases, not a guarantee of current security support.
+Mirror and security-review them for a durable production deployment. This
+registry-only correction does not change credentials, data, or worker isolation.
 
 ## Data, migrations, and backups
 

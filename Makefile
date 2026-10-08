@@ -1,4 +1,4 @@
-.PHONY: dev down logs config check api-check web-check k8s-render
+.PHONY: dev down logs config check api-check web-check k8s-render scripts-check
 
 dev:
 	docker compose up --build
@@ -12,7 +12,10 @@ logs:
 config:
 	docker compose config
 
-check: config api-check web-check k8s-render
+check: scripts-check config api-check web-check k8s-render
+
+scripts-check:
+	python3 -m unittest discover -s scripts -p 'test_dokploy*.py' -v
 
 api-check:
 	docker compose run --build --rm --no-deps api-test

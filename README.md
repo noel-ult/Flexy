@@ -85,7 +85,14 @@ for the operational detail.
 ## Dokploy / Docker production note
 
 [`compose.dokploy.yaml`](compose.dokploy.yaml) is the Docker Compose profile for
-Dokploy. It exposes only the routed web/API services, keeps state in named
+Dokploy. Select its native **GitHub** provider, repository `noel-ult/Flexy`, branch
+`main`, and Compose path `compose.dokploy.yaml` (not Custom Git or an Application
+service). The [Dokploy guide](docs/dokploy.md) includes a safe helper for copying
+the saved environment and switching the earlier failed setup to GitHub without
+deleting its services, credentials, or volumes. MinIO images use pinned release
+tags from Quay; verify registry access from the deployment server before rollout.
+
+It exposes only the routed web/API services, keeps state in named
 volumes, gates the API and worker on a migration, and defaults
 `BUILD_EXECUTOR=unavailable`. This is intentional: Docker's standard seccomp
 profile commonly blocks Bubblewrap's nested namespace setup. The deployed
