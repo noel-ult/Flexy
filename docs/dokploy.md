@@ -189,19 +189,28 @@ do not add `env_file: .env` indiscriminately to every service.
 
 ## Image-pull failures
 
-Both Compose profiles use `quay.io/minio/minio` and `quay.io/minio/mc`, retaining
-the previously pinned release tags. The Docker Hub `minio/minio` and `minio/mc`
-repositories were reported removed upstream; `docker login` is not a repair for
-a removed public repository. See the
-[Apache Doris registry migration](https://github.com/apache/doris/pull/67897).
+Both Compose profiles now build MinIO and its client from immutable GitHub
+source commits. The full-stack CI check reproduced an unauthorized pull from
+the previously configured Quay image; a successful frontend build would not
+have detected that failure. Docker login or swapping to an unverified `latest`
+image is not the fix.
 
-Before redeploying, an operator can check the exact references from the Dokploy
-deployment server (not inside a network-restricted worker):
+`infra/docker/minio.Dockerfile` pins server commit
+`0d7408fc9969caf07de6a8c3a84f9fbb10a6739e` (the existing
+`RELEASE.2025-04-22T22-12-26Z`), and `minio-client.Dockerfile` pins
+`b00526b153a31b36767991a4f5ce2cced435ee8e` (the existing client release).
+The image-build host needs access to Docker Hub's official Go/Debian images,
+`codeload.github.com`, `proxy.golang.org`, `sum.golang.org`, and required
+module sources. This is image compilation, not permission for uploaded jobs
+to access the internet. Private runtime networking is unchanged.
 
-```sh
-docker manifest inspect quay.io/minio/minio:RELEASE.2025-04-22T22-12-26Z
-docker manifest inspect quay.io/minio/mc:RELEASE.2025-04-16T18-13-26Z
-```
+MinIO and `mc` are separate AGPL-3.0 software, not relicensed as Flexy or its
+MIT demo. Each image includes its license and exact source archive under
+`/usr/share/minio` or `/usr/share/minio-client`; retain the Dockerfiles and
+provide corresponding source as required when distributing images. This
+retains the already-selected releases; it is not a claim of current upstream
+maintenance or a complete dependency/security audit. For production, evaluate
+a maintained private S3 service and keep storage updates under review.
 
 A manifest check proves registry access/architecture metadata, not container
 startup or full layer availability. The subsequent actual deployment must pull

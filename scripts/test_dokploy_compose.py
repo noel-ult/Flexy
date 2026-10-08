@@ -374,18 +374,25 @@ class DeploymentProfileTests(unittest.TestCase):
         web = content.split('  web:', 1)[1].split('  migrate:', 1)[0]
         self.assertIn('      - private', web)
 
-    def test_both_profiles_use_the_same_pinned_quay_images(self):
-        expected = {
-            'quay.io/minio/minio:RELEASE.2025-04-22T22-12-26Z',
-            'quay.io/minio/mc:RELEASE.2025-04-16T18-13-26Z',
-        }
+    def test_profiles_build_object_storage_from_pinned_source_not_removed_images(self):
         root = Path(__file__).resolve().parents[1]
         for name in ('compose.yaml', 'compose.dokploy.yaml'):
             with self.subTest(profile=name):
-                images = re.findall(r'^\s+image:\s+(\S+)\s*$', (root / name).read_text(), re.M)
-                self.assertTrue(expected.issubset(set(images)))
-                self.assertFalse(any(image.startswith('minio/') for image in images))
+                content = (root / name).read_text()
+                images = re.findall(r'^\s+image:\s+(\S+)\s*$', content, re.M)
+                self.assertIn('dockerfile: infra/docker/minio.Dockerfile', content)
+                self.assertIn('dockerfile: infra/docker/minio-client.Dockerfile', content)
+                self.assertFalse(any('minio/' in image for image in images))
                 self.assertFalse(any(image.endswith(':latest') for image in images))
+        for filename, commit in (
+            ('minio.Dockerfile', '0d7408fc9969caf07de6a8c3a84f9fbb10a6739e'),
+            ('minio-client.Dockerfile', 'b00526b153a31b36767991a4f5ce2cced435ee8e'),
+        ):
+            content = (root / 'infra/docker' / filename).read_text()
+            self.assertIn(commit, content)
+            self.assertIn('USER 10001:10001', content)
+            self.assertIn('/src/LICENSE', content)
+            self.assertIn('/usr/share/', content)
 
 
 if __name__ == '__main__':

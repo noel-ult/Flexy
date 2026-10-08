@@ -6,6 +6,7 @@ const fixtures = path.resolve(__dirname, "../../fixtures");
 
 async function analyze(page: Page, filename: string) {
   await page.goto("/");
+  await expect(page).toHaveTitle("Flexy — Linux package preparation");
   await expect(page.getByRole("heading", { name: /Turn a supported Debian package/ })).toBeVisible();
   await page.getByLabel("Choose a .deb package").setInputFiles(path.join(fixtures, filename));
   await page.getByRole("button", { name: "Analyze package", exact: true }).click();

@@ -104,8 +104,10 @@ services. A successful frontend build alone is not a working conversion service.
 
 The [Dokploy guide](docs/dokploy.md) includes a safe helper for copying
 the saved environment and switching the earlier failed setup to GitHub without
-deleting its services, credentials, or volumes. MinIO images use pinned release
-tags from Quay; verify registry access from the deployment server before rollout.
+deleting its services, credentials, or volumes. MinIO and its client are built
+from the existing releases' pinned source commits, not inaccessible Docker
+Hub/Quay images. Initial builds take longer and require GitHub and Go-module
+registry access; runtime storage remains on the private network.
 
 It exposes only the routed web/API services, keeps state in named
 volumes, gates the API and worker on a migration, and defaults
