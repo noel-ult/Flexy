@@ -212,6 +212,18 @@ retains the already-selected releases; it is not a claim of current upstream
 maintenance or a complete dependency/security audit. For production, evaluate
 a maintained private S3 service and keep storage updates under review.
 
+### Storage encryption
+
+The bundled MinIO has no KMS. The S3 adapter previously unconditionally requested
+`AES256`, causing real uploads to fail even though all containers were healthy.
+Compose now explicitly selects `S3_SERVER_SIDE_ENCRYPTION=none` for this private
+store. Private networking and bucket access controls are not encryption at rest:
+provision host-disk and backup encryption before production use. Alternatively
+use a maintained S3 service and explicitly select `AES256` or `aws:kms` after
+validating its key configuration. The standalone adapter defaults to `AES256`;
+failed encrypted writes never fall back to unencrypted writes. Storage outages
+return a readable 503 and no analysis job is enqueued.
+
 A manifest check proves registry access/architecture metadata, not container
 startup or full layer availability. The subsequent actual deployment must pull
 both images and pass the migration/storage/API health gates. If the exact tags

@@ -61,6 +61,7 @@ class Settings:
     auto_create_schema: bool
     kubernetes_builder_image: str | None
     cleanup_interval_seconds: int
+    s3_server_side_encryption: str = "AES256"
 
     @classmethod
     def from_env(cls) -> Settings:
@@ -103,6 +104,7 @@ class Settings:
             auto_create_schema=_bool_env("AUTO_CREATE_SCHEMA", True),
             kubernetes_builder_image=os.getenv("FLEXY_BUILDER_IMAGE") or None,
             cleanup_interval_seconds=_int_env("CLEANUP_INTERVAL_SECONDS", 60 * 60),
+            s3_server_side_encryption=os.getenv("S3_SERVER_SIDE_ENCRYPTION", "AES256"),
         )
 
     def ensure_local_directories(self) -> None:

@@ -19,6 +19,7 @@ if HAS_API_RUNTIME:
     from app.config import Settings
     from app.domain import JobStatus
     from app.main import create_app
+    from app.storage import ArtifactStoreError
 
 ROOT = Path(__file__).resolve().parents[2]
 FIXTURE = ROOT / "fixtures" / "flexy-demo_1.0.0_amd64.deb"
@@ -67,6 +68,26 @@ class ApiContractTests(unittest.TestCase):
         self.assertEqual(response.status_code, 202, response.text)
         payload = response.json()
         return payload["id"], payload["capability"]
+
+    def test_storage_failure_is_readable_and_does_not_enqueue_analysis(self) -> None:
+        with (
+            patch.object(
+                self.app.state.container.store,
+                "put_file",
+                side_effect=ArtifactStoreError("private internal details"),
+            ),
+            patch.object(api_main, "enqueue_analysis") as enqueue,
+        ):
+            response = self.client.post(
+                "/v1/jobs",
+                data={"target_os": "arch", "target_arch": "x86_64"},
+                files={"package": (FIXTURE.name, FIXTURE.read_bytes())},
+            )
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(response.json()["detail"]["code"], "storage_unavailable")
+        self.assertNotIn("private internal details", response.text)
+        enqueue.assert_not_called()
+        self.assertEqual(list(self.settings.upload_dir.glob("incoming-*")), [])
 
     def test_capability_guards_job_and_scoped_report_download(self) -> None:
         job_id, capability = self._upload()

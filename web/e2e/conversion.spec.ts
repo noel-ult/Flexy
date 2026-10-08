@@ -9,7 +9,10 @@ async function analyze(page: Page, filename: string) {
   await expect(page).toHaveTitle("Flexy — Linux package preparation");
   await expect(page.getByRole("heading", { name: /Turn a supported Debian package/ })).toBeVisible();
   await page.getByLabel("Choose a .deb package").setInputFiles(path.join(fixtures, filename));
+  const received = page.waitForResponse((response) =>
+    new URL(response.url()).pathname === "/v1/jobs" && response.request().method() === "POST");
   await page.getByRole("button", { name: "Analyze package", exact: true }).click();
+  expect((await received).status()).toBe(202);
 }
 
 async function report(page: Page) {

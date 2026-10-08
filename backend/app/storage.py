@@ -115,6 +115,10 @@ class S3ArtifactStore(ArtifactStore):
     def __init__(self, settings: Settings):
         if not settings.s3_bucket:
             raise ArtifactStoreError("S3_BUCKET is required when ARTIFACT_BACKEND=s3")
+        encryption = settings.s3_server_side_encryption
+        if encryption not in {"AES256", "aws:kms", "none"}:
+            raise ArtifactStoreError("S3_SERVER_SIDE_ENCRYPTION must be AES256, aws:kms or none")
+        self.encryption = encryption
         try:
             import boto3
         except ImportError as exc:  # pragma: no cover - dependency validation
@@ -128,16 +132,32 @@ class S3ArtifactStore(ArtifactStore):
         )
 
     def put_file(self, key: str, source: Path, content_type: str | None = None) -> None:
-        args: dict[str, str] = {"ServerSideEncryption": "AES256"}
+        args: dict[str, str] = {}
+        if self.encryption != "none":
+            args["ServerSideEncryption"] = self.encryption
         if content_type:
             args["ContentType"] = content_type
-        self.client.upload_file(str(source), self.bucket, _validate_key(key), ExtraArgs=args)
+        validated = _validate_key(key)
+        try:
+            self.client.upload_file(str(source), self.bucket, validated, ExtraArgs=args)
+        except Exception as exc:
+            raise ArtifactStoreError(
+                "Object storage upload failed. Check storage availability and encryption configuration."
+            ) from exc
 
     def put_stream(self, key: str, source: BinaryIO, content_type: str | None = None) -> None:
-        args: dict[str, str] = {"ServerSideEncryption": "AES256"}
+        args: dict[str, str] = {}
+        if self.encryption != "none":
+            args["ServerSideEncryption"] = self.encryption
         if content_type:
             args["ContentType"] = content_type
-        self.client.upload_fileobj(source, self.bucket, _validate_key(key), ExtraArgs=args)
+        validated = _validate_key(key)
+        try:
+            self.client.upload_fileobj(source, self.bucket, validated, ExtraArgs=args)
+        except Exception as exc:
+            raise ArtifactStoreError(
+                "Object storage upload failed. Check storage availability and encryption configuration."
+            ) from exc
 
     def open(self, key: str) -> BinaryIO:
         try:

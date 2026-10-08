@@ -351,9 +351,24 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 upload_sha256=digest,
                 upload_size=size,
             )
-            container.store.put_file(
-                job.upload_key, temporary, "application/vnd.debian.binary-package"
-            )
+            try:
+                container.store.put_file(
+                    job.upload_key, temporary, "application/vnd.debian.binary-package"
+                )
+            except ArtifactStoreError:
+                container.repository.mark_error(
+                    job.id,
+                    code="storage_unavailable",
+                    message="Upload storage is unavailable; no analysis was queued.",
+                )
+                raise HTTPException(
+                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    detail={
+                        "code": "storage_unavailable",
+                        "message": "Upload storage is unavailable. Check the storage service, "
+                        "credentials and encryption configuration. No analysis was queued.",
+                    },
+                ) from None
             try:
                 enqueue_analysis(job.id)
             except QueueUnavailable as error:

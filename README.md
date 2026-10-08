@@ -109,6 +109,13 @@ from the existing releases' pinned source commits, not inaccessible Docker
 Hub/Quay images. Initial builds take longer and require GitHub and Go-module
 registry access; runtime storage remains on the private network.
 
+The bundled MinIO does not include a key-management service. Compose therefore
+explicitly uses `S3_SERVER_SIDE_ENCRYPTION=none`; this provides private access,
+**not object-level encryption at rest**. Encrypt the host disk/named-volume
+backups for production, or provision a maintained S3/KMS service and set
+`AES256`/`aws:kms` after validating it. The standalone S3 adapter retains
+`AES256` as its default and never retries an encrypted upload without encryption.
+
 It exposes only the routed web/API services, keeps state in named
 volumes, gates the API and worker on a migration, and defaults
 `BUILD_EXECUTOR=unavailable`. This is intentional: Docker's standard seccomp

@@ -14,6 +14,10 @@ x-backend-environment: &backend-environment
   S3_ACCESS_KEY: ${S3_ACCESS_KEY:?Set S3_ACCESS_KEY in Dokploy}
   S3_SECRET_KEY: ${S3_SECRET_KEY:?Set S3_SECRET_KEY in Dokploy}
   ARTIFACT_BACKEND: ${ARTIFACT_BACKEND:-s3}
+  # Bundled MinIO has no KMS. This explicit mode is NOT an encryption fallback.
+  # Protect its named volume with host-disk encryption. For managed S3/KMS,
+  # configure AES256 or aws:kms instead; failed encrypted writes stay failed.
+  S3_SERVER_SIDE_ENCRYPTION: ${S3_SERVER_SIDE_ENCRYPTION:-none}
   APP_BASE_URL: ${APP_BASE_URL:?Set APP_BASE_URL in Dokploy}
   FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:?Set FRONTEND_ORIGIN in Dokploy}
   UPLOAD_DIR: /var/lib/flexy/uploads
