@@ -62,7 +62,8 @@ test("real supported upload, asynchronous analysis, scoped report, and honest bu
   expect(apiRequests.length).toBeGreaterThan(4);
   expect(apiRequests.every((url) => new URL(url).origin === origin)).toBe(true);
   expect(errors).toEqual([]);
-  await expect(page.getByRole("alert")).toHaveCount(0);
+  // Next.js's route announcer also uses role=alert; it is not an app failure.
+  await expect(page.getByRole("alert").filter({ hasText: "We could not continue." })).toHaveCount(0);
 });
 
 test("unsupported dependency and maintainer script cannot start a build", async ({ page }) => {
@@ -74,5 +75,5 @@ test("unsupported dependency and maintainer script cannot start a build", async 
   expect(result.compatibility.supported).toBe(false);
   expect(result.compatibility.blockers.length).toBeGreaterThan(0);
   expect(result.analysis.package.name).toBe("unsupported-demo");
-  await expect(page.getByRole("alert")).toHaveCount(0);
+  await expect(page.getByRole("alert").filter({ hasText: "We could not continue." })).toHaveCount(0);
 });
