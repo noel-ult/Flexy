@@ -90,6 +90,26 @@ jobs:
       - name: Test real queued analysis and reports through the browser
         working-directory: web
         run: npm run test:e2e
+      - name: Diagnose CI-only storage if browser verification fails
+        if: failure()
+        run: |
+          docker compose exec -T api python - <<'PY'
+          from app.services import get_container
+          container = get_container()
+          # CI-only throwaway objects and credentials, never a production probe.
+          try:
+              container.store.client.put_object(Bucket=container.store.bucket, Key='ci/storage-probe', Body=b'CI probe')
+              print('Basic private S3 PutObject: passed')
+              container.store.put_bytes('ci/storage-probe-stream', b'CI probe')
+              print('Configured S3 adapter stream upload: passed')
+          except Exception as error:
+              cause = error.__cause__ or error
+              response = getattr(cause, 'response', {})
+              print('Storage exception class:', type(cause).__name__)
+              print('S3 error:', response.get('Error', {}).get('Code', 'not supplied'))
+          finally:
+              container.store.delete_prefix('ci')
+          PY
       - name: Save browser failure screenshots
         if: failure()
         uses: actions/upload-artifact@v4
@@ -101,7 +121,7 @@ jobs:
         if: always()
         run: |
           docker compose ps -a
-          docker compose logs --no-color --tail 100 api worker migrate web
+          docker compose logs --no-color --tail 100 api worker migrate web minio minio-init
           docker compose down --volumes --remove-orphans
 
   scripts:

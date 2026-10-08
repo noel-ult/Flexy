@@ -142,7 +142,8 @@ class S3ArtifactStore(ArtifactStore):
             self.client.upload_file(str(source), self.bucket, validated, ExtraArgs=args)
         except Exception as exc:
             raise ArtifactStoreError(
-                "Object storage upload failed. Check storage availability and encryption configuration."
+                "Object storage upload failed. Check storage availability "
+                "and encryption configuration."
             ) from exc
 
     def put_stream(self, key: str, source: BinaryIO, content_type: str | None = None) -> None:
@@ -156,7 +157,8 @@ class S3ArtifactStore(ArtifactStore):
             self.client.upload_fileobj(source, self.bucket, validated, ExtraArgs=args)
         except Exception as exc:
             raise ArtifactStoreError(
-                "Object storage upload failed. Check storage availability and encryption configuration."
+                "Object storage upload failed. Check storage availability "
+                "and encryption configuration."
             ) from exc
 
     def open(self, key: str) -> BinaryIO:

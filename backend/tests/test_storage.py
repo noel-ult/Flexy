@@ -45,7 +45,8 @@ class S3StorageTests(unittest.TestCase):
         settings = replace(
             Settings.from_env(), s3_bucket="private", s3_server_side_encryption=encryption
         )
-        with patch.dict("sys.modules", {"boto3": SimpleNamespace(client=Mock(return_value=client))}):
+        mocked_boto = SimpleNamespace(client=Mock(return_value=client))
+        with patch.dict("sys.modules", {"boto3": mocked_boto}):
             store = S3ArtifactStore(settings)
         return store, client
 

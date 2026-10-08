@@ -12,7 +12,12 @@ async function analyze(page: Page, filename: string) {
   const received = page.waitForResponse((response) =>
     new URL(response.url()).pathname === "/v1/jobs" && response.request().method() === "POST");
   await page.getByRole("button", { name: "Analyze package", exact: true }).click();
-  expect((await received).status()).toBe(202);
+  const response = await received;
+  if (response.status() !== 202) {
+    // Error payloads contain no capabilities; expose the server's readable
+    // explanation so CI failures do not hide behind a disabled-button timeout.
+    throw new Error(`Upload HTTP ${response.status()}: ${await response.text()}`);
+  }
 }
 
 async function report(page: Page) {
