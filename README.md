@@ -116,6 +116,25 @@ steps. The Docker images should also be pinned/scanned/signed as part of a
 production release process; their current mutable base/dependency resolution is
 not a reproducible release lock.
 
+## Automated checks
+
+GitHub Actions runs frontend typechecking, lint, interaction tests, the production
+build, and a root-Dockerfile build with a read-only frontend container smoke test.
+It also runs backend lint/tests and deployment-helper regression tests. These
+checks do not deploy to Dokploy or prove API connectivity, sandbox availability,
+or desktop compatibility; environment-dependent tests can be skipped explicitly.
+
+For the frontend checks locally (Node.js 22):
+
+```bash
+cd web
+npm install --ignore-scripts --no-audit --no-fund
+npm run typecheck
+npm run lint
+npm test
+npm run build
+```
+
 ## Project layout
 
 - `web/` — Next.js + TypeScript browser UI.

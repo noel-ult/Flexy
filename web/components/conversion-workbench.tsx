@@ -280,13 +280,14 @@ export function ConversionWorkbench() {
             setNotice("The status changed, but the latest compatibility report is still loading.");
           });
         }
-        if (event.log) {
+        const log = event.log;
+        if (log) {
           setJob((current) => {
             if (!current || current.id !== jobId) return current;
             const duplicate = current.logs.some(
-              (entry) => entry.timestamp === event.log?.timestamp && entry.message === event.log?.message,
+              (entry) => entry.timestamp === log.timestamp && entry.message === log.message,
             );
-            return duplicate ? current : { ...current, logs: [...current.logs, event.log] };
+            return duplicate ? current : { ...current, logs: [...current.logs, log] };
           });
         }
         if (event.type === "error" && event.message) setNotice(event.message);
