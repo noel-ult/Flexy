@@ -1,0 +1,38 @@
+{
+  "id": "flexy-demo-1.0.0-amd64-arch-x86_64",
+  "source": {
+    "package": "flexy-demo",
+    "version": "1.0.0",
+    "architecture": "amd64",
+    "controlSha256": "6fb232729c0eeb43ae0565cdcca2447742bf770018bdbdf2dda8f2f96a4b8be4",
+    "files": {
+      "usr/bin/flexy-demo": "364c7db44c3426f36a7c72c8a0d1c532e7693eb620c5eb599faee10cb358b3bf",
+      "usr/share/licenses/flexy-demo/LICENSE": "e71fc7a54cc2f7e073813a019e7205c7d0b55437d3020365d0c82f07a6d04760"
+    },
+    "fileModes": {
+      "usr/bin/flexy-demo": "0755",
+      "usr/share/licenses/flexy-demo/LICENSE": "0644"
+    }
+  },
+  "target": {
+    "os": "arch",
+    "architecture": "x86_64"
+  },
+  "dependencyMappings": [
+    {
+      "debian": "libc6",
+      "constraint": ">= 2.37",
+      "arch": "glibc"
+    }
+  ],
+  "pkgrel": 1,
+  "description": "Tiny supported Flexy conversion fixture",
+  "license": "MIT",
+  "verification": {
+    "entrypoint": "usr/bin/flexy-demo",
+    "launchArgs": ["--version"],
+    "functionalityArgs": ["--self-test"],
+    "expectedLaunchOutput": "flexy-demo 1.0.0",
+    "expectedFunctionalityOutput": "flexy-demo self-test: ok"
+  }
+}

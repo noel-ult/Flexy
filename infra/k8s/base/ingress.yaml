@@ -1,0 +1,40 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: flexy
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    nginx.ingress.kubernetes.io/proxy-body-size: 50m
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "310"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "310"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - flexy.example.invalid
+      secretName: flexy-tls
+  rules:
+    - host: flexy.example.invalid
+      http:
+        paths:
+          - path: /v1
+            pathType: Prefix
+            backend:
+              service:
+                name: flexy-api
+                port:
+                  name: http
+          - path: /healthz
+            pathType: Exact
+            backend:
+              service:
+                name: flexy-api
+                port:
+                  name: http
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: flexy-web
+                port:
+                  name: http

@@ -1,0 +1,22 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: flexy
+
+resources:
+  - namespace.yaml
+  - serviceaccounts.yaml
+  - runtime-config.yaml
+  - rbac.yaml
+  - limits.yaml
+  - migrate-job.yaml
+  - api.yaml
+  - worker.yaml
+  - cleanup-cronjob.yaml
+  - frontend.yaml
+  - services.yaml
+  - ingress.yaml
+  - networkpolicies.yaml
+
+commonLabels:
+  app.kubernetes.io/part-of: flexy

@@ -1,0 +1,28 @@
+# The queue worker submits and observes only conversion Jobs in its own namespace.
+# It deliberately cannot read Secrets, create Pods directly, or alter Deployments.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: flexy-build-job-manager
+rules:
+  - apiGroups: ["batch"]
+    resources: ["jobs"]
+    verbs: ["create", "get", "list", "watch", "delete"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["pods/log"]
+    verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: flexy-build-job-manager
+subjects:
+  - kind: ServiceAccount
+    name: flexy-worker
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: flexy-build-job-manager

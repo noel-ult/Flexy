@@ -1,0 +1,63 @@
+# Application cleanup is authoritative for the documented 24-hour retention
+# period. Object-store lifecycle expiry is a second, intentionally slower
+# safety net; see docs/deployment.md.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: flexy-cleanup
+  labels:
+    app.kubernetes.io/name: flexy-cleanup
+    app.kubernetes.io/component: cleanup
+spec:
+  schedule: "17 * * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      activeDeadlineSeconds: 300
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: flexy-cleanup
+            app.kubernetes.io/component: cleanup
+        spec:
+          restartPolicy: Never
+          serviceAccountName: flexy-api
+          automountServiceAccountToken: false
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10001
+            runAsGroup: 10001
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+            - name: cleanup
+              image: ghcr.io/example/flexy-backend:0.1.0
+              imagePullPolicy: IfNotPresent
+              command: ["python", "-m", "app.worker", "cleanup"]
+              envFrom:
+                - configMapRef:
+                    name: flexy-runtime-config
+                - secretRef:
+                    name: flexy-runtime-secrets
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop: ["ALL"]
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 128Mi
+                limits:
+                  cpu: 500m
+                  memory: 512Mi
+              volumeMounts:
+                - name: tmp
+                  mountPath: /tmp
+          volumes:
+            - name: tmp
+              emptyDir:
+                sizeLimit: 32Mi

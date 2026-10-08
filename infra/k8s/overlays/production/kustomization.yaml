@@ -1,0 +1,50 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+
+images:
+  - name: ghcr.io/example/flexy-backend
+    newName: ghcr.io/REPLACE_ME/flexy-backend
+    newTag: REPLACE_WITH_IMMUTABLE_DIGEST_OR_TAG
+  - name: ghcr.io/example/flexy-builder
+    newName: ghcr.io/REPLACE_ME/flexy-builder
+    newTag: REPLACE_WITH_IMMUTABLE_DIGEST_OR_TAG
+  - name: ghcr.io/example/flexy-web
+    newName: ghcr.io/REPLACE_ME/flexy-web
+    newTag: REPLACE_WITH_IMMUTABLE_DIGEST_OR_TAG
+
+patches:
+  - target:
+      kind: ConfigMap
+      name: flexy-runtime-config
+    patch: |-
+      - op: replace
+        path: /data/APP_BASE_URL
+        value: https://flexy.example.invalid
+      - op: replace
+        path: /data/FRONTEND_ORIGIN
+        value: https://flexy.example.invalid
+      - op: replace
+        path: /data/NEXT_PUBLIC_API_BASE_URL
+        value: https://flexy.example.invalid
+      - op: replace
+        path: /data/S3_ENDPOINT
+        value: https://object-storage.example.invalid
+      - op: replace
+        path: /data/S3_BUCKET
+        value: flexy-artifacts
+      - op: replace
+        path: /data/FLEXY_BUILDER_IMAGE
+        value: ghcr.io/REPLACE_ME/flexy-builder:REPLACE_WITH_IMMUTABLE_DIGEST_OR_TAG
+  - target:
+      kind: Ingress
+      name: flexy
+    patch: |-
+      - op: replace
+        path: /spec/tls/0/hosts/0
+        value: flexy.example.invalid
+      - op: replace
+        path: /spec/rules/0/host
+        value: flexy.example.invalid

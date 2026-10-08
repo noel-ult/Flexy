@@ -1,0 +1,79 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: flexy-worker
+  labels:
+    app.kubernetes.io/name: flexy-worker
+    app.kubernetes.io/component: worker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: flexy-worker
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: flexy-worker
+        app.kubernetes.io/component: worker
+    spec:
+      serviceAccountName: flexy-worker
+      # Required only to submit its narrowly scoped batch Jobs.
+      automountServiceAccountToken: true
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: worker
+          image: ghcr.io/example/flexy-backend:0.1.0
+          imagePullPolicy: IfNotPresent
+          command: ["dramatiq", "app.worker"]
+          envFrom:
+            - configMapRef:
+                name: flexy-runtime-config
+            - secretRef:
+                name: flexy-runtime-secrets
+          env:
+            - name: UPLOAD_DIR
+              value: /var/lib/flexy/uploads
+            - name: ARTIFACT_DIR
+              value: /var/lib/flexy/artifacts
+            - name: WORK_DIR
+              value: /var/lib/flexy/work
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: 250m
+              memory: 384Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: upload-scratch
+              mountPath: /var/lib/flexy/uploads
+            - name: artifact-scratch
+              mountPath: /var/lib/flexy/artifacts
+            - name: work-scratch
+              mountPath: /var/lib/flexy/work
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 64Mi
+        - name: upload-scratch
+          emptyDir:
+            sizeLimit: 300Mi
+        - name: artifact-scratch
+          emptyDir:
+            sizeLimit: 300Mi
+        - name: work-scratch
+          emptyDir:
+            sizeLimit: 350Mi

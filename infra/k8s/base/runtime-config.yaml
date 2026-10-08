@@ -1,0 +1,27 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: flexy-runtime-config
+data:
+  APP_ENV: production
+  APP_BASE_URL: https://flexy.example.invalid
+  FRONTEND_ORIGIN: https://flexy.example.invalid
+  NEXT_PUBLIC_API_BASE_URL: https://flexy.example.invalid
+  S3_ENDPOINT: https://object-storage.example.invalid
+  S3_BUCKET: flexy-artifacts
+  ARTIFACT_BACKEND: s3
+  FLEXY_RECIPE_DIR: /srv/flexy/fixtures/recipes
+  QUEUE_MODE: dramatiq
+  ALLOW_DEMO_INLINE_QUEUE: "false"
+  # The one-shot flexy-migrate Job owns schema changes in production.
+  AUTO_CREATE_SCHEMA: "false"
+  BUILD_EXECUTOR: kubernetes
+  KUBERNETES_NAMESPACE: flexy
+  FLEXY_BUILDER_IMAGE: ghcr.io/example/flexy-builder:0.1.0
+  MAX_UPLOAD_BYTES: "52428800"
+  MAX_EXTRACTION_BYTES: "262144000"
+  MAX_FILE_COUNT: "10000"
+  JOB_TIMEOUT_SECONDS: "300"
+  JOB_RETENTION_HOURS: "24"
+  DOWNLOAD_TOKEN_TTL_SECONDS: "900"
+  LOG_LIMIT_BYTES: "1048576"

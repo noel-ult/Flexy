@@ -1,0 +1,57 @@
+# Runs the versioned Alembic schema migration before API readiness is expected.
+# It has no Kubernetes API credential and must only receive the database egress
+# rule documented for this deployment.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: flexy-migrate
+  labels:
+    app.kubernetes.io/name: flexy-migrate
+    app.kubernetes.io/component: migrator
+spec:
+  backoffLimit: 3
+  ttlSecondsAfterFinished: 3600
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: flexy-migrate
+        app.kubernetes.io/component: migrator
+    spec:
+      restartPolicy: OnFailure
+      serviceAccountName: flexy-api
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: migrate
+          image: ghcr.io/example/flexy-backend:0.1.0
+          imagePullPolicy: IfNotPresent
+          command: ["alembic", "upgrade", "head"]
+          envFrom:
+            - configMapRef:
+                name: flexy-runtime-config
+            - secretRef:
+                name: flexy-runtime-secrets
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 32Mi

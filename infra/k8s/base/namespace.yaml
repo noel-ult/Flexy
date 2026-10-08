@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: flexy
+  labels:
+    app.kubernetes.io/part-of: flexy
+    # Refuse privileged, host-mounted, or root workloads in this namespace.
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted

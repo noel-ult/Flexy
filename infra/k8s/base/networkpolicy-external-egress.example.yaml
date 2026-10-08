@@ -1,0 +1,96 @@
+# This file is intentionally not in base/kustomization.yaml. Copy it to the
+# production overlay, replace every documentation CIDR with the exact address
+# ranges of your managed PostgreSQL, Redis, object-storage, and Kubernetes API
+# endpoints, then add it as a production-overlay resource. Do not use 0.0.0.0/0.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-api-worker-data-egress
+spec:
+  podSelector:
+    matchExpressions:
+      - key: app.kubernetes.io/component
+        operator: In
+        values: [api, worker, cleanup]
+  policyTypes: [Egress]
+  egress:
+    # Replace with the PostgreSQL endpoint CIDR. Builder Jobs do not need it.
+    - to:
+        - ipBlock:
+            cidr: 192.0.2.10/32
+      ports:
+        - protocol: TCP
+          port: 5432
+    # Replace with the Redis endpoint CIDR. Builder Jobs do not need it.
+    - to:
+        - ipBlock:
+            cidr: 192.0.2.20/32
+      ports:
+        - protocol: TCP
+          port: 6379
+    # Replace with the S3-compatible object-store endpoint CIDR(s).
+    - to:
+        - ipBlock:
+            cidr: 192.0.2.30/32
+      ports:
+        - protocol: TCP
+          port: 443
+---
+# Schema migration needs only the database. Keep it separate from API/worker
+# egress so a short-lived migrator never gains Redis or object-store access.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-migrator-database-egress
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: migrator
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 192.0.2.10/32
+      ports:
+        - protocol: TCP
+          port: 5432
+---
+# Builders may access only the artifact endpoint through a scoped short-lived
+# grant. They never receive database, Redis, object-store credentials, or broad
+# Internet egress.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-builder-artifact-egress
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: builder
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 192.0.2.30/32
+      ports:
+        - protocol: TCP
+          port: 443
+---
+# Only the worker talks to the Kubernetes API, and only to manage its own
+# constrained batch Jobs through the Role defined in rbac.yaml.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-worker-kubernetes-api
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: worker
+  policyTypes: [Egress]
+  egress:
+    # Replace with the Kubernetes API service/end-point CIDR.
+    - to:
+        - ipBlock:
+            cidr: 192.0.2.40/32
+      ports:
+        - protocol: TCP
+          port: 443
