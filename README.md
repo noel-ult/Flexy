@@ -91,10 +91,16 @@ service for the entire stack). A root [`Dockerfile`](Dockerfile) also provides
 the **web frontend only** for a Dockerfile-based Application deployment; it is
 identical to `infra/docker/web.Dockerfile`. That image listens on port `3000`
 and does not start the API, worker, database, queue, or artifact storage. It needs
-an independently deployed Flexy backend. Set `NEXT_PUBLIC_API_BASE_URL` as a
-**build argument** to that backend's public origin; setting it only as a runtime
-environment variable does not change the browser bundle. A successful frontend
-build alone is not a working conversion service.
+an independently deployed Flexy backend. The browser now defaults to its own
+origin (`/v1`), never the visitor's `localhost`. Set the server-only runtime env
+`FLEXY_API_UPSTREAM=http://api:8000` to a reachable, private Flexy API origin;
+the web service streams uploads, live events and downloads to it without
+forwarding browser cookies. The Compose profiles supply this automatically.
+Alternatively, route `/v1` directly to the API using your reverse proxy. For a
+separate **public** API origin, `NEXT_PUBLIC_API_BASE_URL` remains an optional
+build argument; changing it only at runtime cannot change a built browser bundle.
+With no backend configured, `/v1` returns an honest 503 explaining the missing
+services. A successful frontend build alone is not a working conversion service.
 
 The [Dokploy guide](docs/dokploy.md) includes a safe helper for copying
 the saved environment and switching the earlier failed setup to GitHub without
@@ -119,10 +125,16 @@ not a reproducible release lock.
 ## Automated checks
 
 GitHub Actions runs frontend typechecking, lint, interaction tests, the production
-build, and a root-Dockerfile build with a read-only frontend container smoke test.
-It also runs backend lint/tests and deployment-helper regression tests. These
-checks do not deploy to Dokploy or prove API connectivity, sandbox availability,
-or desktop compatibility; environment-dependent tests can be skipped explicitly.
+build, and a root-Dockerfile build **without a public API build argument** with
+a read-only frontend smoke test and a missing-backend 503 check. It also runs
+backend lint/tests and deployment-helper regression tests. A separate desktop
+and mobile browser job starts the actual production Compose stack: PostgreSQL,
+Alembic migrations, Redis, separate Dramatiq worker, private MinIO and the API.
+It uploads both real fixtures, checks queued analysis and report downloads
+through the web proxy, and verifies that builds fail honestly when isolation
+is unavailable. No mocked jobs or successful conversion results are used.
+These checks do not deploy to Dokploy or prove sandbox availability or desktop
+compatibility; environment-dependent build tests can be skipped explicitly.
 
 For the frontend checks locally (Node.js 22):
 
@@ -134,6 +146,22 @@ npm run lint
 npm test
 npm run build
 ```
+
+For the full-stack browser integration check (Docker required), from the repo
+root, use only a **disposable** test project with the CI-only credentials:
+
+```bash
+docker compose --env-file infra/ci/.env.example -p flexy-ci-check -f compose.dokploy.yaml -f compose.check.yaml up -d --build
+cd web
+npm install --ignore-scripts --no-audit --no-fund
+npx playwright install --with-deps chromium
+npm run test:e2e
+cd ..
+docker compose --env-file infra/ci/.env.example -p flexy-ci-check -f compose.dokploy.yaml -f compose.check.yaml down --volumes
+```
+
+The final command deletes only that disposable project's test data. Never use
+the test credentials or `compose.check.yaml` on a production deployment.
 
 ## Project layout
 

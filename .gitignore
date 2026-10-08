@@ -21,6 +21,8 @@ __pycache__/
 *.egg-info/
 backend/.venv/
 web/node_modules/
+web/test-results/
+web/playwright-report/
 web/.next/
 web/out/
 

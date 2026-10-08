@@ -14,7 +14,8 @@ import {
   type VerificationCheck,
 } from "@/lib/types";
 
-const API_BASE_URL = (process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000").replace(/\/$/, "");
+// An unset build argument means same-origin, not the visitor's localhost.
+const API_BASE_URL = (process.env.NEXT_PUBLIC_API_BASE_URL || "").replace(/\/$/, "");
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -377,7 +378,8 @@ async function readError(response: Response): Promise<ApiError> {
   const detail = payload.detail;
   const detailText = typeof detail === "string" ? detail : asString(asRecord(detail).message);
   return new ApiError(
-    asString(payload.message) ?? detailText ?? `The service returned ${response.status}.`,
+    asString(payload.message) ?? detailText ??
+      `The API returned ${response.status}. The deployment may be missing its API route or backend services; this is not a package compatibility result.`,
     response.status,
     asString(payload.code) ?? asString(asRecord(detail).code),
   );
@@ -385,7 +387,20 @@ async function readError(response: Response): Promise<ApiError> {
 
 async function expectJson(response: Response): Promise<UnknownRecord> {
   if (!response.ok) throw await readError(response);
-  return asRecord(await response.json());
+  try {
+    return asRecord(await response.json());
+  } catch {
+    throw new ApiError("The API returned an invalid response. Check that /v1 reaches the Flexy backend, not the frontend page.", 502);
+  }
+}
+
+async function apiFetch(url: string, options: RequestInit): Promise<Response> {
+  try {
+    return await fetch(url, options);
+  } catch (error) {
+    if (options.signal?.aborted) throw error;
+    throw new ApiError("Cannot reach the Flexy API. Check the deployment's API route and backend services, then try again. No compatibility result was produced.", 0, "api_unreachable");
+  }
 }
 
 function capabilityHeaders(capability: string): HeadersInit {
@@ -398,7 +413,7 @@ export async function createJob(file: File, target: Target = ARCH_X86_64_TARGET)
   form.set("target_os", target.os);
   form.set("target_arch", target.architecture);
 
-  const response = await fetch(`${API_BASE_URL}/v1/jobs`, {
+  const response = await apiFetch(`${API_BASE_URL}/v1/jobs`, {
     method: "POST",
     body: form,
     credentials: "omit",
@@ -413,7 +428,7 @@ export async function createJob(file: File, target: Target = ARCH_X86_64_TARGET)
 }
 
 export async function getJob(jobId: string, capability: string): Promise<ConversionJob> {
-  const response = await fetch(`${API_BASE_URL}/v1/jobs/${encodeURIComponent(jobId)}`, {
+  const response = await apiFetch(`${API_BASE_URL}/v1/jobs/${encodeURIComponent(jobId)}`, {
     headers: capabilityHeaders(capability),
     credentials: "omit",
     cache: "no-store",
@@ -422,7 +437,7 @@ export async function getJob(jobId: string, capability: string): Promise<Convers
 }
 
 export async function startBuild(jobId: string, capability: string): Promise<ConversionJob> {
-  const response = await fetch(`${API_BASE_URL}/v1/jobs/${encodeURIComponent(jobId)}/build`, {
+  const response = await apiFetch(`${API_BASE_URL}/v1/jobs/${encodeURIComponent(jobId)}/build`, {
     method: "POST",
     headers: capabilityHeaders(capability),
     credentials: "omit",
@@ -434,7 +449,7 @@ export async function requestDownload(jobId: string, capability: string, kind: "
   // `artifact` is the stable API/storage name for the generated package. The
   // UI intentionally calls it a package, which is clearer to an end user.
   const apiKind = kind === "package" ? "artifact" : "report";
-  const response = await fetch(`${API_BASE_URL}/v1/jobs/${encodeURIComponent(jobId)}/downloads/${apiKind}`, {
+  const response = await apiFetch(`${API_BASE_URL}/v1/jobs/${encodeURIComponent(jobId)}/downloads/${apiKind}`, {
     method: "POST",
     headers: capabilityHeaders(capability),
     credentials: "omit",
@@ -444,11 +459,12 @@ export async function requestDownload(jobId: string, capability: string, kind: "
   if (!rawUrl) throw new ApiError("The service did not return a download URL.", 502);
   let url: URL;
   try {
-    url = new URL(rawUrl, API_BASE_URL);
+    url = new URL(rawUrl, API_BASE_URL || window.location.origin);
   } catch {
     throw new ApiError("The service returned an invalid download URL.", 502);
   }
-  if (url.protocol !== "https:" && url.protocol !== "http:") {
+  const apiOrigin = new URL(API_BASE_URL || window.location.origin).origin;
+  if ((url.protocol !== "https:" && url.protocol !== "http:") || url.origin !== apiOrigin || url.username || url.password) {
     throw new ApiError("The service returned an unsafe download URL.", 502);
   }
   return url.toString();
@@ -491,7 +507,7 @@ export async function streamJobEvents(
   onEvent: (event: JobEvent) => void,
   signal: AbortSignal,
 ): Promise<void> {
-  const response = await fetch(`${API_BASE_URL}/v1/jobs/${encodeURIComponent(jobId)}/events`, {
+  const response = await apiFetch(`${API_BASE_URL}/v1/jobs/${encodeURIComponent(jobId)}/events`, {
     headers: { ...capabilityHeaders(capability), Accept: "text/event-stream" },
     credentials: "omit",
     cache: "no-store",

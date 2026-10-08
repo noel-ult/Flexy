@@ -18,7 +18,7 @@ jobs:
     timeout-minutes: 15
     env:
       NEXT_TELEMETRY_DISABLED: "1"
-      NEXT_PUBLIC_API_BASE_URL: https://flexy.noelbiju.in
+      NEXT_PUBLIC_API_BASE_URL: ""
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -40,7 +40,7 @@ jobs:
         working-directory: web
         run: npm run build
       - name: Build root frontend Dockerfile
-        run: docker build --build-arg NEXT_PUBLIC_API_BASE_URL="$NEXT_PUBLIC_API_BASE_URL" -t flexy-web:check .
+        run: docker build -t flexy-web:check .
       - name: Smoke-test frontend container
         shell: bash
         run: |
@@ -50,11 +50,59 @@ jobs:
           for attempt in {1..30}; do
             if curl --fail --silent http://127.0.0.1:3000/ -o /tmp/flexy-home.html; then
               grep -q "Turn a supported Debian package" /tmp/flexy-home.html
+              status=$(curl --silent -o /tmp/flexy-api-error.json -w '%{http_code}' http://127.0.0.1:3000/v1/jobs)
+              test "$status" = 503
+              grep -q 'backend_not_configured' /tmp/flexy-api-error.json
               exit 0
             fi
             sleep 1
           done
           exit 1
+
+  integration:
+    name: Real stack desktop and mobile upload tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      COMPOSE_PROJECT_NAME: flexy-ci-check
+      COMPOSE_FILE: compose.dokploy.yaml:compose.check.yaml
+      COMPOSE_ENV_FILES: infra/ci/.env.example
+      NEXT_PUBLIC_API_BASE_URL: ""
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install browser test dependencies
+        working-directory: web
+        run: |
+          npm install --ignore-scripts --no-audit --no-fund
+          npx playwright install --with-deps chromium
+      - name: Build and start the real production stack
+        run: |
+          docker compose config --quiet
+          docker compose up -d --build
+          for attempt in {1..90}; do
+            if curl --fail --silent http://127.0.0.1:3000/ -o /dev/null; then exit 0; fi
+            sleep 2
+          done
+          exit 1
+      - name: Test real queued analysis and reports through the browser
+        working-directory: web
+        run: npm run test:e2e
+      - name: Save browser failure screenshots
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-failure-screenshots
+          path: web/test-results/**/test-failed-*.png
+          if-no-files-found: ignore
+      - name: Show service state and remove disposable CI data
+        if: always()
+        run: |
+          docker compose ps -a
+          docker compose logs --no-color --tail 100 api worker migrate web
+          docker compose down --volumes --remove-orphans
 
   scripts:
     name: Deployment helper regression tests

@@ -19,11 +19,20 @@ error. It listens on port `3000`.
 
 This is **not** a replacement for the full Compose deployment: the API,
 separate worker, PostgreSQL, Redis, and private object storage must be deployed
-independently. Pass the reachable backend's public origin through the
-`NEXT_PUBLIC_API_BASE_URL` build argument. A runtime env value alone cannot
-replace the baked-in browser URL. If the backend is on another origin, its
-`FRONTEND_ORIGIN` must allow the frontend origin. Do not claim upload, analysis,
-or conversion works from a frontend-only deployment.
+independently. By default the browser uses same-origin `/v1`. Set server-only
+runtime `FLEXY_API_UPSTREAM` to the reachable private API origin (for example
+`http://api:8000`) and ensure the web and API services share a network. This
+runtime value is not baked into or exposed by the browser bundle. The web
+proxy streams uploads, SSE and downloads and forwards only API-required headers,
+not cookies or unrelated authorization. It cannot create a missing backend.
+Alternatively route `/v1` directly to the API using Traefik.
+
+For a separate **public** backend origin, pass `NEXT_PUBLIC_API_BASE_URL` as a
+build argument. A runtime value alone cannot replace the baked-in browser URL.
+If that backend is on another origin, its `FRONTEND_ORIGIN` must allow the
+frontend origin. Do not claim upload, analysis or conversion works from a
+frontend-only deployment. A missing proxy upstream returns a readable 503;
+an unreachable upstream returns a readable 502, not a compatibility result.
 
 For a complete stack on Dokploy, use `compose.dokploy.yaml` below. Adding the
 root Dockerfile does not change existing env values, provider settings, routes,
@@ -158,8 +167,13 @@ unrecognized response stops the operation without a success claim.
 
    Enable TLS/Let's Encrypt for both. Do not strip `/v1`: the API owns that
    path. The browser calls the API at the same origin, so `APP_BASE_URL`,
-   `FRONTEND_ORIGIN`, and `NEXT_PUBLIC_API_BASE_URL` must exactly match the web
-   origin (scheme and host, no trailing slash).
+   `FRONTEND_ORIGIN` must exactly match the web origin (scheme and host, no
+   trailing slash). `NEXT_PUBLIC_API_BASE_URL` may be empty (recommended
+   same-origin default) or match that origin. The Compose web service also
+   configures `FLEXY_API_UPSTREAM=http://api:8000` and joins the private network,
+   so `/v1` can be forwarded internally even if you route only `/` to `web`.
+   Existing direct API routes remain supported; do not remove working routes
+   just to use the internal proxy. Never set a public URL to `localhost:8000`.
 4. Do **not** configure Dokploy Advanced → Ports and do not publish ports in
    Compose. PostgreSQL, Redis, MinIO, the migration process, and the worker
    must never have a public route. The web and API are reached only through

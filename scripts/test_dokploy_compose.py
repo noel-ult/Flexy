@@ -357,9 +357,22 @@ class DeploymentProfileTests(unittest.TestCase):
         self.assertEqual(content, (root / 'infra/docker/web.Dockerfile').read_text())
         self.assertIn('COPY web ./', content)
         self.assertIn('ARG NEXT_PUBLIC_API_BASE_URL=', content)
+        self.assertNotIn('http://localhost:8000', content)
         self.assertIn('USER 10001:10001', content)
         self.assertIn('EXPOSE 3000', content)
         self.assertNotIn('COPY backend', content)
+
+    def test_profiles_provide_a_runtime_private_api_and_bounded_workers(self):
+        root = Path(__file__).resolve().parents[1]
+        for name in ('compose.yaml', 'compose.dokploy.yaml'):
+            with self.subTest(profile=name):
+                content = (root / name).read_text()
+                self.assertIn('FLEXY_API_UPSTREAM: http://api:8000', content)
+                self.assertIn('"--processes", "1", "--threads", "2"', content)
+        content = (root / 'compose.dokploy.yaml').read_text()
+        self.assertIn('NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-}', content)
+        web = content.split('  web:', 1)[1].split('  migrate:', 1)[0]
+        self.assertIn('      - private', web)
 
     def test_both_profiles_use_the_same_pinned_quay_images(self):
         expected = {

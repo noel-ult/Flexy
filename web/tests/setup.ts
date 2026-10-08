@@ -5,4 +5,5 @@ import { afterEach, vi } from "vitest";
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
 });

@@ -64,9 +64,12 @@ services:
       context: .
       dockerfile: infra/docker/web.Dockerfile
       args:
-        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:?Set NEXT_PUBLIC_API_BASE_URL in Dokploy}
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-}
     environment:
-      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:?Set NEXT_PUBLIC_API_BASE_URL in Dokploy}
+      FLEXY_API_UPSTREAM: http://api:8000
+    networks:
+      - default
+      - private
     expose:
       - "3000"
     depends_on:
@@ -141,7 +144,7 @@ services:
     build:
       context: .
       dockerfile: infra/docker/backend.Dockerfile
-    command: ["dramatiq", "app.worker"]
+    command: ["dramatiq", "app.worker", "--processes", "1", "--threads", "2"]
     environment: *backend-environment
     volumes:
       - flexy_uploads:/var/lib/flexy/uploads
@@ -242,7 +245,7 @@ services:
 
 networks:
   # Dokploy's Isolated Deployments feature adds its routing network to web/api.
-  # This network is only for backend-to-datastore traffic.
+  # This network carries web-to-API and backend-to-datastore traffic.
   private:
     internal: true
 
