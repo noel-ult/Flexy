@@ -374,6 +374,17 @@ class DeploymentProfileTests(unittest.TestCase):
         web = content.split('  web:', 1)[1].split('  migrate:', 1)[0]
         self.assertIn('      - private', web)
 
+    def test_bucket_init_passes_the_whole_script_as_one_shell_argument(self):
+        root = Path(__file__).resolve().parents[1]
+        for name in ('compose.yaml', 'compose.dokploy.yaml'):
+            with self.subTest(profile=name):
+                init = re.split(r'^  minio-init:', (root / name).read_text(), flags=re.M)[1]
+                self.assertIn('entrypoint: ["/bin/sh", "-ec"]', init)
+                self.assertIn('    command:\n      - |\n', init)
+                self.assertNotIn('    command: >-', init)
+                self.assertIn('        mc mb --ignore-existing', init)
+                self.assertIn('        mc anonymous set none', init)
+
     def test_profiles_build_object_storage_from_pinned_source_not_removed_images(self):
         root = Path(__file__).resolve().parents[1]
         for name in ('compose.yaml', 'compose.dokploy.yaml'):

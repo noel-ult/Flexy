@@ -198,13 +198,15 @@ services:
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
       S3_BUCKET: ${S3_BUCKET}
     entrypoint: ["/bin/sh", "-ec"]
-    command: >-
-      attempts=0;
-      until mc alias set local http://minio:9000 "$${MINIO_ROOT_USER}" "$${MINIO_ROOT_PASSWORD}";
-      do attempts=$$((attempts + 1)); test "$$attempts" -lt 30 || exit 1; sleep 1; done;
-      mc mb --ignore-existing "local/$${S3_BUCKET}";
-      mc anonymous set none "local/$${S3_BUCKET}";
-      mc ilm rule add --expire-days 1 "local/$${S3_BUCKET}"
+    command:
+      - |
+        attempts=0
+        until mc alias set local http://minio:9000 "$${MINIO_ROOT_USER}" "$${MINIO_ROOT_PASSWORD}"; do
+          attempts=$$((attempts + 1)); test "$$attempts" -lt 30 || exit 1; sleep 1
+        done
+        mc mb --ignore-existing "local/$${S3_BUCKET}"
+        mc anonymous set none "local/$${S3_BUCKET}"
+        mc ilm rule add --expire-days 1 "local/$${S3_BUCKET}"
     depends_on:
       minio:
         condition: service_started

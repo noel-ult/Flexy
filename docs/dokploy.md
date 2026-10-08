@@ -224,6 +224,13 @@ validating its key configuration. The standalone adapter defaults to `AES256`;
 failed encrypted writes never fall back to unencrypted writes. Storage outages
 return a readable 503 and no analysis job is enqueued.
 
+The bucket initializer's entire script is passed as one shell argument. Do not
+change it back to a scalar `command: >-`: Compose splits scalar commands into
+arguments, so `/bin/sh -ec` would execute only the initial assignment and exit
+zero without creating the private bucket. Verify bucket initialization logs,
+not just the container exit code. A real upload/report check is the acceptance
+test for storage readiness.
+
 A manifest check proves registry access/architecture metadata, not container
 startup or full layer availability. The subsequent actual deployment must pull
 both images and pass the migration/storage/API health gates. If the exact tags
