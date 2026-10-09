@@ -202,7 +202,7 @@ class JobRepository:
             )
             if result.rowcount:
                 self._append_log_in_session(
-                    session, job_id, "info", "Isolated build environment started."
+                    session, job_id, "info", "Build worker started; checking isolated environment."
                 )
                 return True
             return False

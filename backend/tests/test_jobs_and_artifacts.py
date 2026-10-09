@@ -59,6 +59,9 @@ class JobAndArtifactTests(unittest.TestCase):
             self.assertEqual(repository.queue_build(job.id).status, JobStatus.BUILD_QUEUED.value)
             self.assertTrue(repository.begin_build(job.id))
             self.assertFalse(repository.begin_build(job.id))
+            messages = [entry.message for entry in repository.logs_after(job.id, 0)]
+            self.assertIn("Build worker started; checking isolated environment.", messages)
+            self.assertNotIn("Isolated build environment started.", messages)
 
     def test_scoped_download_tokens_and_private_local_storage(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_text:

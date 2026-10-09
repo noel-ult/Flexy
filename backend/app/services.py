@@ -279,7 +279,7 @@ def process_build(job_id: str, container: ServiceContainer | None = None) -> Non
             )
             return
         container.repository.append_log(
-            job_id, "info", "Starting isolated build with no network access."
+            job_id, "info", "Checking availability of the network-isolated build executor."
         )
         if container.settings.build_executor == "bwrap":
             build_result = container.bwrap_runner.run(
