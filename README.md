@@ -53,6 +53,11 @@ an unrestricted public worker on a friend's shared VPS without their approval.
 
 ## Run locally
 
+For the optional offline laptop Arch VM worker, see
+[native worker setup](docs/native-worker.md). It connects over authenticated
+outbound HTTPS without exposing database/storage ports. Native demo checks are
+reported separately; they are CLI checks, not a desktop compatibility guarantee.
+
 Prerequisites: Docker Engine with Compose v2, enough disk for the images, and a
 host/container runtime that permits unprivileged user namespaces for Bubblewrap.
 The worker intentionally fails closed if its isolated build environment is not

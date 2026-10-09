@@ -22,6 +22,9 @@ from .config import Settings, get_settings
 from .db import initialize_local_schema
 from .domain import SUPPORTED_TARGET, ArtifactKind, JobStatus
 from .queue import QueueUnavailable, enqueue_analysis, enqueue_build
+from .remote_builds import queue_native
+from .remote_builds import router as native_router
+from .remote_builds import sweep as sweep_native
 from .repository import AccessDeniedError, InvalidJobStateError, JobRepository, NotFoundError
 from .security import new_job_id, safe_download_filename
 from .services import ServiceContainer, cleanup_expired_jobs, upload_key
@@ -40,20 +43,22 @@ class UploadBodyLimitMiddleware:
         self.max_bytes = max_bytes
 
     async def __call__(self, scope: dict[str, Any], receive: Any, send: Any) -> None:
+        is_native = scope.get("path", "").startswith("/v1/native-worker/")
         is_upload = (
             scope.get("type") == "http"
-            and scope.get("path") == "/v1/jobs"
+            and (scope.get("path") == "/v1/jobs" or is_native)
             and scope.get("method") == "POST"
         )
         if not is_upload:
             await self.app(scope, receive, send)
             return
+        limit = min(self.max_bytes, 2 * 1024 * 1024) if is_native else self.max_bytes
         headers = {
             key.decode("latin-1").lower(): value.decode("latin-1")
             for key, value in scope.get("headers", [])
         }
         content_length = headers.get("content-length")
-        if content_length and content_length.isdigit() and int(content_length) > self.max_bytes:
+        if content_length and content_length.isdigit() and int(content_length) > limit:
             await JSONResponse(
                 status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
                 content={"detail": "Upload is too large."},
@@ -66,7 +71,7 @@ class UploadBodyLimitMiddleware:
             message = await receive()
             if message.get("type") == "http.request":
                 seen += len(message.get("body", b""))
-                if seen > self.max_bytes:
+                if seen > limit:
                     raise UploadBodyTooLarge()
             return message
 
@@ -209,6 +214,7 @@ def _require_owned_job(
     capability: Annotated[str | None, Header(alias="X-Job-Capability")] = None,
 ) -> tuple[Any, ServiceContainer]:
     container: ServiceContainer = request.app.state.container
+    sweep_native(container)
     try:
         job = container.repository.get_owned(job_id, capability)
     except (NotFoundError, AccessDeniedError) as exc:
@@ -282,6 +288,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         lifespan=lifespan,
     )
     app.state.container = api_container
+    app.include_router(native_router)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=list(configured_settings.frontend_origins),
@@ -409,6 +416,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             job_id = initial_job.id
             while True:
                 try:
+                    await asyncio.to_thread(sweep_native, container)
                     current = container.repository.get(job_id)
                 except NotFoundError:
                     yield 'event: end\ndata: {"reason":"deleted"}\n\n'
@@ -456,6 +464,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         owned: Annotated[tuple[Any, ServiceContainer], Depends(_require_owned_job)],
     ) -> dict[str, Any]:
         job, container = owned
+        if container.settings.build_executor == "remote":
+            queue_native(container, job.id)
+            return _job_response(container.repository.get(job.id), container.repository)
         try:
             queued = container.repository.queue_build(job.id)
             enqueue_build(job.id)

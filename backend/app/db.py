@@ -43,6 +43,9 @@ def session_scope(factory: sessionmaker[Session]) -> Iterator[Session]:
 
 def initialize_local_schema(factory: sessionmaker[Session]) -> None:
     """Convenience for local development; production must run Alembic migrations."""
-    from .models import Base
+    from .models import Base, RemoteWorker
 
     Base.metadata.create_all(factory.kw["bind"])
+    with factory.begin() as session:
+        if session.get(RemoteWorker, 1) is None:
+            session.add(RemoteWorker(id=1, revision=0))

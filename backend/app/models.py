@@ -17,6 +17,18 @@ class Base(DeclarativeBase):
     pass
 
 
+class RemoteWorker(Base):
+    """Private singleton lock/lease; never exposed in a browser job response."""
+
+    __tablename__ = "remote_worker"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    revision: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    last_seen: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    job_id: Mapped[str | None] = mapped_column(String(64))
+    lease_hash: Mapped[str | None] = mapped_column(String(64))
+    lease_expires: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
 class Job(Base):
     __tablename__ = "jobs"
 

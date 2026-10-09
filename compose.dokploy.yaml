@@ -32,6 +32,7 @@ x-backend-environment: &backend-environment
   # narrowly reviewed worker sandbox policy and the host preflight in
   # docs/dokploy.md have both passed, then explicitly set this to bwrap.
   BUILD_EXECUTOR: ${BUILD_EXECUTOR:-unavailable}
+  REMOTE_BUILD_TOKEN: ${REMOTE_BUILD_TOKEN:-}
   BWRAP_PATH: /usr/bin/bwrap
   MAX_UPLOAD_BYTES: ${MAX_UPLOAD_BYTES:-52428800}
   MAX_EXTRACTION_BYTES: ${MAX_EXTRACTION_BYTES:-262144000}

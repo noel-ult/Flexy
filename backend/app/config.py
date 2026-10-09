@@ -62,6 +62,7 @@ class Settings:
     kubernetes_builder_image: str | None
     cleanup_interval_seconds: int
     s3_server_side_encryption: str = "AES256"
+    remote_build_token: str | None = None
 
     @classmethod
     def from_env(cls) -> Settings:
@@ -105,6 +106,7 @@ class Settings:
             kubernetes_builder_image=os.getenv("FLEXY_BUILDER_IMAGE") or None,
             cleanup_interval_seconds=_int_env("CLEANUP_INTERVAL_SECONDS", 60 * 60),
             s3_server_side_encryption=os.getenv("S3_SERVER_SIDE_ENCRYPTION", "AES256"),
+            remote_build_token=os.getenv("REMOTE_BUILD_TOKEN") or None,
         )
 
     def ensure_local_directories(self) -> None:

@@ -15,7 +15,7 @@ config:
 check: scripts-check config api-check web-check k8s-render
 
 scripts-check:
-	python3 -m unittest discover -s scripts -p 'test_dokploy*.py' -v
+	python3 -m unittest discover -s scripts -p 'test_*.py' -v
 
 api-check:
 	docker compose run --build --rm --no-deps api-test

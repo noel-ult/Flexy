@@ -244,6 +244,9 @@ def process_analysis(job_id: str, container: ServiceContainer | None = None) -> 
 
 def process_build(job_id: str, container: ServiceContainer | None = None) -> None:
     container = container or get_container()
+    if container.settings.build_executor == "remote":
+        # Native builds use the durable HTTP-pull queue, never the VPS actor.
+        return
     workspace: Path | None = None
     build_result = None
     try:

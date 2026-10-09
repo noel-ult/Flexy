@@ -1,0 +1,21 @@
+[Unit]
+Description=Flexy outbound HTTPS bridge to offline Arch VM
+After=network-online.target
+ConditionPathExists=%h/.local/state/flexy-vm/worker-token
+ConditionPathExists=%h/.local/state/flexy-vm/known_hosts
+
+[Service]
+Type=simple
+WorkingDirectory=%h/Flexy
+ExecStart=/usr/bin/python3 %h/Flexy/scripts/native_bridge.py
+Environment=PYTHONDONTWRITEBYTECODE=1
+Restart=on-failure
+RestartSec=10
+NoNewPrivileges=true
+UMask=0077
+MemoryMax=128M
+CPUQuota=25%
+TasksMax=32
+
+[Install]
+WantedBy=default.target
