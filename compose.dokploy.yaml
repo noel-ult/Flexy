@@ -95,7 +95,7 @@ services:
     <<: *hardened-container
     build:
       context: .
-      dockerfile: infra/docker/backend.Dockerfile
+      dockerfile: infra/docker/backend-service.Dockerfile
     command: ["alembic", "upgrade", "head"]
     environment: *migration-environment
     depends_on:
@@ -112,7 +112,7 @@ services:
     <<: *hardened-container
     build:
       context: .
-      dockerfile: infra/docker/backend.Dockerfile
+      dockerfile: infra/docker/backend-service.Dockerfile
     command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
     environment: *backend-environment
     expose:
@@ -147,7 +147,7 @@ services:
     <<: *hardened-container
     build:
       context: .
-      dockerfile: infra/docker/backend.Dockerfile
+      dockerfile: infra/docker/backend-service.Dockerfile
     command: ["dramatiq", "app.worker", "--processes", "1", "--threads", "2"]
     environment: *backend-environment
     volumes:

@@ -102,6 +102,15 @@ build argument; changing it only at runtime cannot change a built browser bundle
 With no backend configured, `/v1` returns an honest 503 explaining the missing
 services. A successful frontend build alone is not a working conversion service.
 
+The production API, migration and inspection worker use the native amd64/arm64
+[`backend-service.Dockerfile`](infra/docker/backend-service.Dockerfile). They do
+not need to run uploaded binaries to inspect x86_64 packages. This image has no
+Arch conversion toolchain; the Docker production profile supports inspection,
+reports and honest build-unavailable results only. The separate Arch
+[`backend.Dockerfile`](infra/docker/backend.Dockerfile) remains for validated
+x86_64 conversion environments and local development. Do not force amd64
+emulation or enable an unsandboxed executor on an ARM deployment server.
+
 The [Dokploy guide](docs/dokploy.md) includes a safe helper for copying
 the saved environment and switching the earlier failed setup to GitHub without
 deleting its services, credentials, or volumes. MinIO and its client are built

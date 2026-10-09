@@ -63,6 +63,25 @@ or service definitions.
 
 ## Create the Compose service
 
+### Server architecture and backend-only routing
+
+The production profile uses `infra/docker/backend-service.Dockerfile` for the
+API, migrations and inspection worker. This Python control-plane image supports
+native amd64 and arm64; inspection reads ELF metadata without running uploaded
+x86_64 binaries. It intentionally contains no Arch conversion toolchain.
+`BUILD_EXECUTOR=unavailable` stays in effect. A validated x86_64 Arch worker using
+`infra/docker/backend.Dockerfile` and an approved sandbox is required for real
+conversion builds; setting `bwrap` alone in this control-plane image cannot
+enable them. The runner rejects missing tools rather than executing unsandboxed.
+
+If the domain already serves a working Dockerfile-based frontend Application,
+you can preserve its `/` route and attach **only `/v1`** to the Compose `api`
+service on port `8000`, with Strip Path disabled. Do not create a second `/`
+route, expose databases or replace existing secrets. The browser's same-origin
+requests then reach the backend directly. The Compose `web` service may remain
+unrouted. The migration helper below intentionally refuses such mixed-service
+domain ownership; configure this backend-only route in Dokploy instead.
+
 ### Start here: GitHub integration
 
 Use **Docker Compose**, not an Application service or Custom Git provider.

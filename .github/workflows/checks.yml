@@ -135,6 +135,21 @@ jobs:
           python-version: "3.12"
       - run: make scripts-check
 
+  portable-backend:
+    name: Native inspection image (${{ matrix.runner }})
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-24.04, ubuntu-24.04-arm]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build native control-plane test image
+        run: docker build --target test -f infra/docker/backend-service.Dockerfile -t flexy-inspection:test .
+      - name: Test safe analysis, jobs, artifact access and unavailable builds
+        run: docker run --rm --network none --read-only --cap-drop ALL --security-opt no-new-privileges --tmpfs /tmp:rw,noexec,nosuid,nodev,size=128m flexy-inspection:test python -m unittest discover -s tests -t . -v
+
   backend:
     name: Backend lint and tests
     runs-on: ubuntu-latest
