@@ -86,7 +86,9 @@ Both routed services explicitly set `traefik.docker.network` to
 `${COMPOSE_PROJECT_NAME}`. Dokploy's isolated routing network has the same name
 as its `docker compose -p` project. Compose exposes that project name during
 interpolation; no additional environment secret is required. Keep Isolated
-Deployments enabled. Without explicit network selection, Traefik may select
+Deployments enabled and preserve **list-form labels**: Dokploy 0.29 only appends
+its generated domain routes to label arrays, not label maps. Without explicit
+network selection, Traefik may select
 the unreachable private network when an API container has multiple networks,
 causing public timeouts despite a healthy API. Database, queue, storage and
 worker services stay on the internal private network only.

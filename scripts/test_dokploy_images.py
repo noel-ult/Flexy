@@ -41,7 +41,9 @@ class ProductionImageTests(unittest.TestCase):
             r'^  (\w+):\n(.*?)(?=^  \w+:\n|^networks:|\Z)', compose,
             re.M | re.S,
         ))
-        label = 'traefik.docker.network: ${COMPOSE_PROJECT_NAME}'
+        # Dokploy 0.29's domain injector requires array labels. Map syntax is
+        # valid Compose but silently prevents its HTTPS routes being added.
+        label = 'labels:\n      - traefik.docker.network=${COMPOSE_PROJECT_NAME}'
         for name in ('web', 'api'):
             self.assertIn(label, services[name])
         for name in ('migrate', 'worker', 'postgres', 'redis', 'minio'):

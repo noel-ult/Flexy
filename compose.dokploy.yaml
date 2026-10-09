@@ -66,8 +66,9 @@ services:
     <<: *hardened-container
     # Dokploy's isolated routing network matches the CLI -p project name.
     # Explicit selection prevents Traefik from using the private network.
+    # Use list syntax: Dokploy 0.29 appends domain labels only to arrays.
     labels:
-      traefik.docker.network: ${COMPOSE_PROJECT_NAME}
+      - traefik.docker.network=${COMPOSE_PROJECT_NAME}
     build:
       context: .
       dockerfile: infra/docker/web.Dockerfile
@@ -115,7 +116,7 @@ services:
   api:
     <<: *hardened-container
     labels:
-      traefik.docker.network: ${COMPOSE_PROJECT_NAME}
+      - traefik.docker.network=${COMPOSE_PROJECT_NAME}
     build:
       context: .
       dockerfile: infra/docker/backend-service.Dockerfile
