@@ -35,6 +35,19 @@ class ProductionImageTests(unittest.TestCase):
         self.assertIsNone(re.search(r'^\s*privileged:\s*true', compose, re.M))
         self.assertIn('internal: true', compose)
 
+    def test_personal_packaging_is_opt_in_and_resource_limited(self):
+        overlay = (ROOT / 'compose.personal.yaml').read_text()
+        self.assertIn('BUILD_EXECUTOR: wasi', overlay)
+        self.assertIn('JOB_TIMEOUT_SECONDS: "30"', overlay)
+        self.assertIn('"--processes", "1", "--threads", "1"', overlay)
+        self.assertIn('cpus: 0.50', overlay)
+        self.assertIn('mem_limit: 512m', overlay)
+        for bypass in ('privileged:', 'unconfined', 'docker.sock', 'ports:', 'volumes:'):
+            self.assertNotIn(bypass, overlay)
+        self.assertIn('does not configure authentication', overlay)
+        production = (ROOT / 'compose.dokploy.yaml').read_text()
+        self.assertIn('BUILD_EXECUTOR: ${BUILD_EXECUTOR:-unavailable}', production)
+
     def test_only_routed_services_select_the_isolated_routing_network(self):
         compose = (ROOT / 'compose.dokploy.yaml').read_text()
         services = dict(re.findall(

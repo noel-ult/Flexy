@@ -1,6 +1,6 @@
 # Native amd64/arm64 control-plane image for safe inspection and queue jobs.
-# This is NOT an Arch conversion environment. Keep conversion workers on the
-# separate Arch image only after their host and sandbox have been validated.
+# Includes opt-in data-only WASI recipe repackaging, NOT an Arch runtime.
+# Installation/launch verification requires the separately validated Arch image.
 FROM python:3.12-slim-bookworm AS runtime
 
 ENV PYTHONDONTWRITEBYTECODE=1 \

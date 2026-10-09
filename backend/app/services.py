@@ -17,6 +17,7 @@ from .inspection import DebInspector, InspectionLimits, PackageInspectionError
 from .recipes import RecipeRegistry
 from .repository import JobRepository, NotFoundError
 from .runners import BubblewrapRunner, BuildEnvironmentUnavailable
+from .runners.wasi import WasiRepackRunner
 from .storage import ArtifactStore, create_artifact_store
 
 
@@ -281,7 +282,12 @@ def process_build(job_id: str, container: ServiceContainer | None = None) -> Non
         container.repository.append_log(
             job_id, "info", "Checking availability of the network-isolated build executor."
         )
-        if container.settings.build_executor == "bwrap":
+        if container.settings.build_executor == "wasi":
+            build_result = WasiRepackRunner(container.settings).run(
+                source, recipe,
+                lambda level, message: container.repository.append_log(job_id, level, message),
+            )
+        elif container.settings.build_executor == "bwrap":
             build_result = container.bwrap_runner.run(
                 source,
                 recipe,

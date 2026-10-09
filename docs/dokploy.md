@@ -72,7 +72,9 @@ x86_64 binaries. It intentionally contains no Arch conversion toolchain.
 `BUILD_EXECUTOR=unavailable` stays in effect. A validated x86_64 Arch worker using
 `infra/docker/backend.Dockerfile` and an approved sandbox is required for real
 conversion builds; setting `bwrap` alone in this control-plane image cannot
-enable them. The runner rejects missing tools rather than executing unsandboxed.
+enable full runtime verification. The runner rejects missing tools rather than
+executing unsandboxed. The opt-in data-only WASI packager below can create the
+exact demo package on either architecture without Linux namespace exceptions.
 
 If the domain already serves a working Dockerfile-based frontend Application,
 you can preserve its `/` route and attach **only `/v1`** to the Compose `api`
@@ -302,6 +304,41 @@ Replace `API_CONTAINER` with the actual container ID or name. `/healthz` proves
 the HTTP process is running. `/readyz` additionally proves that the API can
 reach PostgreSQL. Review the `migrate`, `minio-init`, API, and worker logs in
 Dokploy before sending traffic to the service.
+
+## Personal-use data-only WASI packaging
+
+The native backend image includes a trusted WASI archive writer for the exact
+demo recipe. `BUILD_EXECUTOR=wasi` enables **package creation only**, with real
+metadata/payload/compression validation. Installation, launch and functionality
+are recorded as `not_run`; an ARM server does not become an x86 verification
+machine. The worker does not execute uploaded code or fetch dependencies.
+
+No privileged container, host policy exception, host filesystem mount or engine
+socket is needed. The WASI store only receives a read-only job staging directory
+and a fresh job output directory, no inherited environment/credentials or
+network capability. Input is restricted to 1 MiB and 100 entries; Wasm memory to
+128 KiB, fuel to 10 million instructions and packaging time to at most 30 seconds.
+The surrounding service retains all existing non-root/container/resource limits.
+
+First restrict the entire domain and `/v1` to your personal authenticated access,
+including origin-side protection against direct-server bypass. Ask the VPS
+owner to approve the shared-server resource budget. Then set
+`BUILD_EXECUTOR=wasi` in **your Flexy service only** and redeploy. Do not edit
+Dokploy's global settings, host security policies or your friend's other services.
+Default examples and helper validation intentionally retain `unavailable`.
+
+For a smaller single-job worker, layer `compose.personal.yaml` over
+`compose.dokploy.yaml` using both `-f` arguments in your service's Compose command;
+keep Dokploy's existing `-p` name and original Compose Path for domain injection.
+The override supplies `wasi`, one worker thread, half a CPU and 512 MiB RAM. It
+does not replace environment secrets, add public ports, weaken isolation, or
+configure access control. Check Preview Compose and the effective model first.
+
+Test both uploads after opting in. The supported fixture must yield an actual
+`.pkg.tar.zst`, a `passed` package-creation check and three `not_run` runtime
+checks. The unsupported fixture must remain blocked with no package. Downloads
+must still require job capabilities and scoped single-use grants. The package
+is unsigned; only install it on your own compatible Arch system after review.
 
 ## Bubblewrap host preflight and explicit enablement
 

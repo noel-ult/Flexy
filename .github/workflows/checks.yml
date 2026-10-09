@@ -90,6 +90,13 @@ jobs:
       - name: Test real queued analysis and reports through the browser
         working-directory: web
         run: npm run test:e2e
+      - name: Enable only the data-only WASI worker in the disposable CI stack
+        run: BUILD_EXECUTOR=wasi docker compose up -d --no-deps worker
+      - name: Test real package creation and honest unrun runtime checks
+        working-directory: web
+        env:
+          FLEXY_EXPECT_WASI: "1"
+        run: npm run test:e2e
       - name: Diagnose CI-only storage if browser verification fails
         if: failure()
         run: |

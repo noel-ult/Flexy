@@ -1,0 +1,11 @@
+# Opt-in for PERSONAL, access-controlled use; does not configure authentication.
+# docker compose -f compose.dokploy.yaml -f compose.personal.yaml up -d --build
+# Existing API/storage/migration configuration and isolation stay unchanged.
+services:
+  worker:
+    environment:
+      BUILD_EXECUTOR: wasi
+      JOB_TIMEOUT_SECONDS: "30"
+    command: ["dramatiq", "app.worker", "--processes", "1", "--threads", "1"]
+    cpus: 0.50
+    mem_limit: 512m

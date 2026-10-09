@@ -23,9 +23,33 @@ start a build. Similar-looking, modified, or arbitrary `.deb` files are not
 silently converted.
 
 The target selector currently exposes only Arch Linux `x86_64`. RPM conversion,
-source rebuilds, Wine workflows, other CPU architectures, generic dependency
+source rebuilds, Wine workflows, other target CPU architectures, generic dependency
 translation, and maintainer-script translation are future extension points, not
 current capabilities.
+
+### Personal-use package creation (ARM or x86 host)
+
+The opt-in `BUILD_EXECUTOR=wasi` worker creates a **real unsigned Arch package**
+for the exact demo recipe using a trusted WebAssembly archive writer. It does
+not run `makepkg`, uploaded PKGBUILDs, maintainer scripts, or uploaded binaries.
+Each job gets a fresh capability-restricted WASI store with only read-only staged
+input and its own output directory; no inherited secrets or network sockets.
+Memory, CPU fuel, time and output size are bounded. The demo payload is capped
+at 1 MiB and 100 input entries, with a maximum 30-second packaging deadline.
+
+Package creation verifies all archive members, recipe payload hashes/modes,
+`.PKGINFO`, `.BUILDINFO`, `.MTREE` and compression round-trip. Installation,
+launch and functionality explicitly remain **not run**. Those checks still need
+the separate, validated x86_64 Arch/Bubblewrap environment. This is data-only
+repackaging, not x86 emulation, source compilation, or desktop compatibility.
+
+The ordinary production profile remains `unavailable` by default. For a
+**personal, access-controlled** deployment, opt in using `BUILD_EXECUTOR=wasi`.
+[`compose.personal.yaml`](compose.personal.yaml) additionally provides a
+single-job worker capped at half a CPU and 512 MiB when layered over the
+production Compose file. It does **not** add authentication: a public URL is
+still public until the frontend AND API are access-controlled. Do not enable
+an unrestricted public worker on a friend's shared VPS without their approval.
 
 ## Run locally
 
@@ -105,8 +129,9 @@ services. A successful frontend build alone is not a working conversion service.
 The production API, migration and inspection worker use the native amd64/arm64
 [`backend-service.Dockerfile`](infra/docker/backend-service.Dockerfile). They do
 not need to run uploaded binaries to inspect x86_64 packages. This image has no
-Arch conversion toolchain; the Docker production profile supports inspection,
-reports and honest build-unavailable results only. The separate Arch
+Arch runtime/toolchain; the default Docker production profile supports inspection,
+reports and honest build-unavailable results. Opt-in WASI supports the narrow
+data-only package-creation workflow described above. The separate Arch
 [`backend.Dockerfile`](infra/docker/backend.Dockerfile) remains for validated
 x86_64 conversion environments and local development. Do not force amd64
 emulation or enable an unsandboxed executor on an ARM deployment server.

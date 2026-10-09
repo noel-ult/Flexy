@@ -140,6 +140,36 @@ class ApiContractTests(unittest.TestCase):
         )
         self.assertEqual(response.status_code, 413)
 
+    def test_real_wasi_build_report_and_scoped_package_download(self) -> None:
+        from app.services import process_analysis, process_build
+
+        container = self.app.state.container
+        container.settings = replace(container.settings, build_executor="wasi")
+        job_id, capability = self._upload()
+        headers = {"X-Job-Capability": capability}
+        process_analysis(job_id, container)
+        with patch.object(api_main, "enqueue_build") as enqueue:
+            queued = self.client.post(f"/v1/jobs/{job_id}/build", headers=headers)
+        self.assertEqual(queued.status_code, 202)
+        enqueue.assert_called_once_with(job_id)
+        process_build(job_id, container)
+        result = self.client.get(f"/v1/jobs/{job_id}", headers=headers).json()
+        self.assertEqual(result["status"], "succeeded")
+        self.assertEqual(result["verification"]["packageCreation"]["state"], "passed")
+        for check in ("installation", "launch", "functionality"):
+            self.assertEqual(result["verification"][check]["state"], "not_run")
+        self.assertEqual(self.client.post(f"/v1/jobs/{job_id}/downloads/artifact").status_code, 404)
+        grant = self.client.post(f"/v1/jobs/{job_id}/downloads/artifact", headers=headers)
+        self.assertEqual(grant.status_code, 200)
+        download = self.client.get(grant.json()["url"])
+        self.assertEqual(download.status_code, 200)
+        self.assertEqual(download.content[:4], b"\x28\xb5\x2f\xfd")
+        self.assertEqual(self.client.get(grant.json()["url"]).status_code, 404)
+        report_grant = self.client.post(f"/v1/jobs/{job_id}/downloads/report", headers=headers)
+        report = self.client.get(report_grant.json()["url"]).json()
+        self.assertEqual(report["verification"], result["verification"])
+        self.assertFalse(list(container.settings.work_dir.glob("flexy-wasi-*")))
+
 
 if __name__ == "__main__":
     unittest.main()

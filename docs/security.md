@@ -18,6 +18,25 @@ Flexy is designed around the assumption that every uploaded archive is hostile.
 
 ## Execution isolation
 
+### Opt-in data-only WASI packager
+
+`BUILD_EXECUTOR=wasi` accepts only the exact reviewed demo recipe, reinspects it
+and never executes uploaded code. The trusted archive writer runs in a new
+Wasmtime/WASI store with only two scoped directory capabilities: read-only
+staged input and fresh output. No credentials/environment or stdio are inherited;
+no sockets, process execution, host root, or untrusted Wasm module is exposed.
+The 128-KiB Wasm memory cap, fuel budget, epoch deadline, 1-MiB input cap and
+verified output bound are additional to the worker container resource limits.
+Trusted Python handles inspection, metadata, hashing, compression and private
+artifact storage outside the guest; WASI isolation is not a claim that this
+trusted service code runs in its own OS namespace. Keep the runtime patched.
+
+This pathway produces an unsigned package and checks its data, not Linux
+installation, application launch or functionality. Those three checks stay
+`not_run`. No uploaded installation step is translated or executed. Job-owned
+staging and partial output are cleaned after processing. Personal-use overrides
+limit concurrency but do not authenticate visitors or impose global disk quotas.
+
 The local runner uses Bubblewrap and fails closed when it cannot create a
 disposable namespace. Production builds are intended to be individual Kubernetes
 Jobs with all of the following properties:

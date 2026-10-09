@@ -51,12 +51,29 @@ test("real supported upload, asynchronous analysis, scoped report, and honest bu
   expect(analysis.analysis.package.name).toBe("flexy-demo");
   expect(analysis.verification.packageCreation.state).toBe("not_run");
   await page.getByRole("button", { name: "Start isolated build" }).click();
-  await expect(page.getByText("Build environment unavailable", { exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Download Arch package" })).toBeDisabled();
-  const unavailable = await report(page);
-  expect(unavailable.error.code).toBe("build_environment_unavailable");
-  for (const check of Object.values(unavailable.verification) as { state: string }[]) {
-    expect(check.state).toBe("not_run");
+  if (process.env.FLEXY_EXPECT_WASI === "1") {
+    await expect(page.getByRole("button", { name: "Download Arch package" })).toBeEnabled();
+    const built = await report(page);
+    expect(built.verification.packageCreation.state).toBe("passed");
+    for (const name of ["installation", "launch", "functionality"]) {
+      expect(built.verification[name].state).toBe("not_run");
+    }
+    const received = page.waitForEvent("download");
+    await page.getByRole("button", { name: "Download Arch package" }).click();
+    const artifact = await received;
+    expect(artifact.suggestedFilename()).toBe("flexy-demo-1.0.0-1-x86_64.pkg.tar.zst");
+    const saved = await artifact.path();
+    expect(saved).not.toBeNull();
+    expect((await readFile(saved!)).subarray(0, 4)).toEqual(Buffer.from([0x28, 0xb5, 0x2f, 0xfd]));
+    expect((await page.request.get(artifact.url())).status()).toBe(404);
+  } else {
+    await expect(page.getByText("Build environment unavailable", { exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Download Arch package" })).toBeDisabled();
+    const unavailable = await report(page);
+    expect(unavailable.error.code).toBe("build_environment_unavailable");
+    for (const check of Object.values(unavailable.verification) as { state: string }[]) {
+      expect(check.state).toBe("not_run");
+    }
   }
   const origin = new URL(page.url()).origin;
   expect(apiRequests.length).toBeGreaterThan(4);
