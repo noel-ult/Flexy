@@ -82,6 +82,15 @@ requests then reach the backend directly. The Compose `web` service may remain
 unrouted. The migration helper below intentionally refuses such mixed-service
 domain ownership; configure this backend-only route in Dokploy instead.
 
+Both routed services explicitly set `traefik.docker.network` to
+`${COMPOSE_PROJECT_NAME}`. Dokploy's isolated routing network has the same name
+as its `docker compose -p` project. Compose exposes that project name during
+interpolation; no additional environment secret is required. Keep Isolated
+Deployments enabled. Without explicit network selection, Traefik may select
+the unreachable private network when an API container has multiple networks,
+causing public timeouts despite a healthy API. Database, queue, storage and
+worker services stay on the internal private network only.
+
 ### Start here: GitHub integration
 
 Use **Docker Compose**, not an Application service or Custom Git provider.

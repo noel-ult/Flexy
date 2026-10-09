@@ -35,6 +35,19 @@ class ProductionImageTests(unittest.TestCase):
         self.assertIsNone(re.search(r'^\s*privileged:\s*true', compose, re.M))
         self.assertIn('internal: true', compose)
 
+    def test_only_routed_services_select_the_isolated_routing_network(self):
+        compose = (ROOT / 'compose.dokploy.yaml').read_text()
+        services = dict(re.findall(
+            r'^  (\w+):\n(.*?)(?=^  \w+:\n|^networks:|\Z)', compose,
+            re.M | re.S,
+        ))
+        label = 'traefik.docker.network: ${COMPOSE_PROJECT_NAME}'
+        for name in ('web', 'api'):
+            self.assertIn(label, services[name])
+        for name in ('migrate', 'worker', 'postgres', 'redis', 'minio'):
+            self.assertNotIn('traefik.docker.network', services[name])
+        self.assertEqual(compose.count(label), 2)
+
 
 if __name__ == '__main__':
     unittest.main()

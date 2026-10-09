@@ -59,11 +59,15 @@ x-hardened-container: &hardened-container
     - /tmp:rw,noexec,nosuid,nodev,size=64m
 
 services:
-  # Attach domains through Dokploy's Domains tab, not labels in this file:
+  # Attach domain routes through Dokploy's Domains tab:
   # - same host /      -> web :3000
   # - same host /v1    -> api :8000 (Strip Path must remain disabled)
   web:
     <<: *hardened-container
+    # Dokploy's isolated routing network matches the CLI -p project name.
+    # Explicit selection prevents Traefik from using the private network.
+    labels:
+      traefik.docker.network: ${COMPOSE_PROJECT_NAME}
     build:
       context: .
       dockerfile: infra/docker/web.Dockerfile
@@ -110,6 +114,8 @@ services:
 
   api:
     <<: *hardened-container
+    labels:
+      traefik.docker.network: ${COMPOSE_PROJECT_NAME}
     build:
       context: .
       dockerfile: infra/docker/backend-service.Dockerfile
