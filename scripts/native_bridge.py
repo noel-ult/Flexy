@@ -108,6 +108,7 @@ class Bridge:
         headers = {
             "Authorization": "Bearer " + self.token,
             "Accept": "application/json",
+            "User-Agent": "FlexyNativeBridge/0.1",
         }
         if lease:
             headers["X-Build-Lease"] = lease
