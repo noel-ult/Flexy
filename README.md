@@ -1,5 +1,10 @@
 # Flexy
 
+<!-- documentation-navigation -->
+[Developer guide](docs/PROJECT_GUIDE.md) · [Source reference](docs/REFERENCE.md) · [Contributing](CONTRIBUTING.md)
+<!-- /documentation-navigation -->
+
+
 Flexy is a browser-accessible, deliberately narrow package-conversion service. Its
 first real workflow accepts a Linux `.deb`, analyzes it without executing package
 code, and can create an Arch Linux `x86_64` package only when an exact supported
