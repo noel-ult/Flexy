@@ -1,7 +1,6 @@
 # Flexy source reference
 
-
-Source reviewed: [`d65f2a770c31`](https://github.com/noel-ult/Flexy/commit/d65f2a770c31b1c60fba0fccb0eb6e463ea8c949).
+Source reviewed: [`6d95bd071313`](https://github.com/noel-ult/Flexy/commit/6d95bd0713136c67fb1fc61366e73e0bfff7bb31).
 
 This reference records the checked-in source, scripts, configuration names, and route declarations. It is a navigation aid; service availability and successful test execution require separate verification.
 
@@ -100,9 +99,12 @@ Paths are **as declared in each source file**. Router/blueprint mount prefixes f
 
 Historical plans/reports describe their own revision; use current source when they disagree.
 
+- [CONTRIBUTING.md](../CONTRIBUTING.md)
 - [README.md](../README.md)
 - [backend/requirements-dev.txt](../backend/requirements-dev.txt)
 - [backend/requirements.txt](../backend/requirements.txt)
+- [docs/PROJECT_GUIDE.md](../docs/PROJECT_GUIDE.md)
+- [docs/REFERENCE.md](../docs/REFERENCE.md)
 - [docs/architecture.md](../docs/architecture.md)
 - [docs/deployment.md](../docs/deployment.md)
 - [docs/dokploy.md](../docs/dokploy.md)

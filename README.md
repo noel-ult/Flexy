@@ -239,3 +239,7 @@ None of these verifies arbitrary GUI behavior, hardware integration, user data,
 or compatibility with every Arch installation. The browser runs the remote
 conversion service; a downloaded application runs only on the user's own
 computer after they choose to install it.
+
+<!-- developer-handbook-20261028 -->
+[Developer guide](docs/PROJECT_GUIDE.md) · [Source reference](docs/REFERENCE.md) · [Verification and operations](docs/OPERATIONS.md)
+<!-- /developer-handbook-20261028 -->
